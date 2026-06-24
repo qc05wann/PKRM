@@ -52,7 +52,7 @@ body{
 /* Sidebar */
 .sidebar{
   width:260px;
-  background:var(--color-primary);
+  background-color:var(--color-primary) !important;
   color:#fff;
   border:0;
 }
