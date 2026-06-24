@@ -305,7 +305,8 @@
     refreshAll();
   }
 
-  var tableState = { currentTab: 'PK', searchQuery: '', statusFilter: '' };
+  var PAGE_SIZE = 50;
+  var tableState = { currentTab: 'PK', searchQuery: '', statusFilter: '', currentPage: 1 };
 
   function renderTableHead() {
     var schema = getSchema(tableState.currentTab);
@@ -334,6 +335,18 @@
     });
   }
 
+  function renderPagination(totalItems) {
+    var bar = document.getElementById('paginationBar');
+    var totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+    if (tableState.currentPage > totalPages) tableState.currentPage = totalPages;
+    if (tableState.currentPage < 1) tableState.currentPage = 1;
+
+    bar.classList.toggle('d-none', totalItems === 0);
+    document.getElementById('pageInfo').textContent = 'หน้า ' + tableState.currentPage + ' / ' + totalPages;
+    document.getElementById('prevPageBtn').disabled = (tableState.currentPage <= 1);
+    document.getElementById('nextPageBtn').disabled = (tableState.currentPage >= totalPages);
+  }
+
   function renderTableBody() {
     var type = tableState.currentTab;
     var schema = getSchema(type);
@@ -350,12 +363,18 @@
       tbody.innerHTML = '';
       tableEl.classList.add('d-none');
       emptyEl.classList.remove('d-none');
+      renderPagination(0);
       return;
     }
     tableEl.classList.remove('d-none');
     emptyEl.classList.add('d-none');
 
-    tbody.innerHTML = filtered.slice().reverse().map(function (r) {
+    var reversed = filtered.slice().reverse();
+    renderPagination(reversed.length);
+    var startIdx = (tableState.currentPage - 1) * PAGE_SIZE;
+    var pageItems = reversed.slice(startIdx, startIdx + PAGE_SIZE);
+
+    tbody.innerHTML = pageItems.map(function (r) {
       var cells = schema.map(function (f) {
         var val = r[f.key];
         if (f.type === 'status') return '<td>' + statusBadgeHTML(type, val) + '</td>';
@@ -593,8 +612,6 @@
     var mode = document.querySelector('input[name="importMode"]:checked').value;
     var addedPK = pendingImport.PK.length, addedRM = pendingImport.RM.length;
 
-    // สำคัญ: ถ้าไฟล์ที่อัปโหลด "ไม่มี" ชีต PK หรือ RM เลย จะไม่แตะข้อมูลเดิมของประเภทนั้น
-    // แม้เลือกโหมด "แทนที่ข้อมูลเดิม" ก็ตาม — ป้องกันข้อมูลอีกประเภทถูกลบไปโดยไม่ตั้งใจ
     if (pendingImportFound.PK) {
       var pkArr = mode === 'replace' ? pendingImport.PK : loadRecords('PK').concat(pendingImport.PK);
       saveRecords('PK', pkArr);
@@ -741,6 +758,7 @@
         btn.classList.add('active');
         tableState.currentTab = btn.dataset.tab;
         tableState.searchQuery = '';
+        tableState.currentPage = 1;
         document.getElementById('searchInput').value = '';
         renderTableHead();
         populateStatusFilterOptions();
@@ -749,10 +767,12 @@
     });
     document.getElementById('searchInput').addEventListener('input', debounce(function (e) {
       tableState.searchQuery = e.target.value;
+      tableState.currentPage = 1;
       renderTableBody();
     }, 150));
     document.getElementById('statusFilter').addEventListener('change', function (e) {
       tableState.statusFilter = e.target.value;
+      tableState.currentPage = 1;
       renderTableBody();
     });
     document.getElementById('clearFilterBtn').addEventListener('click', function () {
@@ -760,6 +780,15 @@
       document.getElementById('statusFilter').value = '';
       tableState.searchQuery = '';
       tableState.statusFilter = '';
+      tableState.currentPage = 1;
+      renderTableBody();
+    });
+    document.getElementById('prevPageBtn').addEventListener('click', function () {
+      tableState.currentPage--;
+      renderTableBody();
+    });
+    document.getElementById('nextPageBtn').addEventListener('click', function () {
+      tableState.currentPage++;
       renderTableBody();
     });
     document.getElementById('tableBody').addEventListener('click', function (e) {
