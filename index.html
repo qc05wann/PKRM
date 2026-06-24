@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QC Dashboard | Wann Cosmetics</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+<!-- Custom styles -->
+<link href="assets/css/style.css" rel="stylesheet">
+</head>
+<body>
+
+<!-- ============== SIDEBAR (desktop) / OFFCANVAS (mobile) ============== -->
+<div class="offcanvas-md offcanvas-start sidebar" tabindex="-1" id="sidebar">
+  <div class="sidebar-inner d-flex flex-column h-100">
+    <div class="sidebar-brand d-flex align-items-center gap-2 px-3 py-3">
+      <i class="bi bi-clipboard2-pulse-fill brand-icon"></i>
+      <div>
+        <div class="brand-title">QC Dashboard</div>
+        <div class="brand-sub">Wann Cosmetics &amp; Lab</div>
+      </div>
+      <button type="button" class="btn-close btn-close-white d-md-none ms-auto" data-bs-dismiss="offcanvas" data-bs-target="#sidebar"></button>
+    </div>
+
+    <nav class="nav flex-column px-2 gap-1 flex-grow-1" id="mainNav">
+      <a href="#dashboard" class="nav-link sidebar-link active" data-page="dashboard">
+        <i class="bi bi-grid-1x2-fill"></i><span>ภาพรวม (Dashboard)</span>
+      </a>
+      <a href="#entry" class="nav-link sidebar-link" data-page="entry">
+        <i class="bi bi-pencil-square"></i><span>บันทึกข้อมูล</span>
+      </a>
+      <a href="#table" class="nav-link sidebar-link" data-page="table">
+        <i class="bi bi-table"></i><span>ตารางข้อมูล / ค้นหา</span>
+      </a>
+      <a href="#io" class="nav-link sidebar-link" data-page="io">
+        <i class="bi bi-arrow-down-up"></i><span>นำเข้า / ส่งออก Excel</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer px-3 py-3">
+      <div class="storage-badge">
+        <i class="bi bi-hdd-fill"></i>
+        บันทึกข้อมูลในเบราว์เซอร์นี้เท่านั้น
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== MAIN CONTENT ============== -->
+<div class="main-wrap">
+
+  <!-- Topbar -->
+  <header class="topbar d-flex align-items-center gap-2 px-3 py-2">
+    <button class="btn btn-icon d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-label="เปิดเมนู">
+      <i class="bi bi-list fs-4"></i>
+    </button>
+    <h1 class="topbar-title mb-0" id="pageTitle">ภาพรวม (Dashboard)</h1>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <span class="d-none d-sm-inline text-muted small" id="clock"></span>
+    </div>
+  </header>
+
+  <main class="content p-3 p-md-4">
+
+    <!-- ====================== PAGE: DASHBOARD ====================== -->
+    <section id="page-dashboard" class="page-section">
+
+      <div id="dashboardEmpty" class="empty-state d-none">
+        <i class="bi bi-inboxes"></i>
+        <h2>ยังไม่มีข้อมูลในระบบ</h2>
+        <p>เริ่มต้นด้วยการนำเข้าไฟล์ Excel หรือบันทึกข้อมูลรายการแรกของคุณ</p>
+        <div class="d-flex gap-2 justify-content-center flex-wrap">
+          <button class="btn btn-brand" data-goto="io"><i class="bi bi-upload"></i> นำเข้าไฟล์ Excel</button>
+          <button class="btn btn-outline-brand" data-goto="entry"><i class="bi bi-pencil-square"></i> บันทึกข้อมูลใหม่</button>
+        </div>
+      </div>
+
+      <div id="dashboardContent">
+        <!-- PK Block -->
+        <div class="section-block">
+          <div class="section-block-head">
+            <span class="dot dot-pk"></span> บรรจุภัณฑ์ (PK)
+          </div>
+          <div class="row g-3">
+            <div class="col-6 col-xl-3">
+              <div class="kpi-card">
+                <div class="kpi-bar bar-neutral"></div>
+                <div class="kpi-label">รับเข้าทั้งหมด</div>
+                <div class="kpi-value mono" id="pkTotal">0</div>
+                <div class="kpi-unit">รายการ</div>
+              </div>
+            </div>
+            <div class="col-6 col-xl-3">
+              <div class="kpi-card">
+                <div class="kpi-bar bar-pass"></div>
+                <div class="kpi-label">ผ่าน</div>
+                <div class="kpi-value mono" id="pkPass">0</div>
+                <div class="kpi-unit">รายการ</div>
+              </div>
+            </div>
+            <div class="col-6 col-xl-3">
+              <div class="kpi-card">
+                <div class="kpi-bar bar-danger"></div>
+                <div class="kpi-label">Rejected</div>
+                <div class="kpi-value mono" id="pkRejected">0</div>
+                <div class="kpi-unit">รายการ</div>
+              </div>
+            </div>
+            <div class="col-6 col-xl-3">
+              <div class="kpi-card">
+                <div class="kpi-bar bar-brand"></div>
+                <div class="kpi-label">Pass Rate</div>
+                <div class="kpi-value mono" id="pkPassRate">0.0</div>
+                <div class="kpi-unit">%</div>
+              </div>
+            </div>
+          </div>
+          <div class="row g-3 mt-1">
+            <div class="col-12 col-lg-5">
+              <div class="chart-card">
+                <div class="chart-card-title">สัดส่วนสถานะ PK</div>
+                <div class="chart-wrap"><canvas id="pkChart"></canvas></div>
+                <div id="pkChartEmpty" class="chart-empty d-none">ไม่มีข้อมูลให้แสดง</div>
+              </div>
+            </div>
+            <div class="col-12 col-lg-7">
+              <div class="chart-card h-100">
+                <div class="chart-card-title">รายการ PK ล่าสุด</div>
+                <div id="pkRecentList" class="recent-list"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RM Block -->
+        <div class="section-block">
+          <div class="section-block-head">
+            <span class="dot dot-rm"></span> วัตถุดิบ (RM)
+          </div>
+          <div class="row g-3">
+            <div class="col-6 col-xl-3">
+              <div class="kpi-card">
+                <div class="kpi-bar bar-neutral"></div>
+                <div class="kpi-label">รับเข้าทั้งหมด</div>
+                <div class="kpi-value mono" id="rmTotal">0</div>
+                <div class="kpi-unit">รายการ</div>
+              </div>
+            </div>
+            <div class="col-6 col-xl-3">
+              <div class="kpi-card">
+                <div class="kpi-bar bar-pass"></div>
+                <div class="kpi-label">Approved</div>
+                <div class="kpi-value mono" id="rmApproved">0</div>
+                <div class="kpi-unit">รายการ</div>
+              </div>
+            </div>
+            <div class="col-6 col-xl-3">
+              <div class="kpi-card">
+                <div class="kpi-bar bar-danger"></div>
+                <div class="kpi-label">Rejected</div>
+                <div class="kpi-value mono" id="rmRejected">0</div>
+                <div class="kpi-unit">รายการ</div>
+              </div>
+            </div>
+            <div class="col-6 col-xl-3">
+              <div class="kpi-card">
+                <div class="kpi-bar bar-brand"></div>
+                <div class="kpi-label">Pass Rate</div>
+                <div class="kpi-value mono" id="rmPassRate">0.0</div>
+                <div class="kpi-unit">%</div>
+              </div>
+            </div>
+          </div>
+          <div class="row g-3 mt-1">
+            <div class="col-12 col-lg-5">
+              <div class="chart-card">
+                <div class="chart-card-title">สัดส่วนสถานะ RM</div>
+                <div class="chart-wrap"><canvas id="rmChart"></canvas></div>
+                <div id="rmChartEmpty" class="chart-empty d-none">ไม่มีข้อมูลให้แสดง</div>
+              </div>
+            </div>
+            <div class="col-12 col-lg-7">
+              <div class="chart-card h-100">
+                <div class="chart-card-title">รายการ RM ล่าสุด</div>
+                <div id="rmRecentList" class="recent-list"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== PAGE: DATA ENTRY ====================== -->
+    <section id="page-entry" class="page-section d-none">
+      <div class="card form-card">
+        <div class="card-body">
+
+          <div class="btn-group type-switch mb-4" role="group">
+            <input type="radio" class="btn-check" name="entryType" id="entryTypePK" value="PK" checked>
+            <label class="btn btn-outline-brand" for="entryTypePK"><i class="bi bi-box-seam"></i> บรรจุภัณฑ์ (PK)</label>
+
+            <input type="radio" class="btn-check" name="entryType" id="entryTypeRM" value="RM">
+            <label class="btn btn-outline-brand" for="entryTypeRM"><i class="bi bi-droplet-half"></i> วัตถุดิบ (RM)</label>
+          </div>
+
+          <!-- PK FORM -->
+          <form id="formPK" novalidate>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label">เลขที่รับเข้า <span class="req">*</span></label>
+                <input type="text" class="form-control" name="receiveNo" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">วันที่รับเข้า <span class="req">*</span></label>
+                <input type="date" class="form-control" name="receiveDate" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">วันที่ตรวจสอบ</label>
+                <input type="date" class="form-control" name="inspectDate">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">รหัส <span class="req">*</span></label>
+                <input type="text" class="form-control" name="code" required>
+              </div>
+              <div class="col-md-8">
+                <label class="form-label">ชื่อบรรจุภัณฑ์ <span class="req">*</span></label>
+                <input type="text" class="form-control" name="name" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Supplier <span class="req">*</span></label>
+                <input type="text" class="form-control" name="supplier" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Lot <span class="req">*</span></label>
+                <input type="text" class="form-control" name="lot" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">จำนวน (ชิ้น)</label>
+                <input type="number" min="0" class="form-control" name="qty">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">สถานะ <span class="req">*</span></label>
+                <select class="form-select" name="status" required>
+                  <option value="" selected disabled>เลือกสถานะ</option>
+                  <option value="ผ่าน">ผ่าน</option>
+                  <option value="Quarantine">Quarantine</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">ผู้ตรวจ</label>
+                <input type="text" class="form-control" name="inspector">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">ผู้อนุมัติ</label>
+                <input type="text" class="form-control" name="approver">
+              </div>
+              <div class="col-12">
+                <label class="form-label">ประเภท Defect</label>
+                <input type="text" class="form-control" name="defectType" placeholder="ระบุเฉพาะกรณีพบปัญหา (ถ้ามี)">
+              </div>
+            </div>
+            <div class="d-flex gap-2 mt-4">
+              <button type="submit" class="btn btn-brand"><i class="bi bi-check2-circle"></i> บันทึกข้อมูล PK</button>
+              <button type="reset" class="btn btn-outline-secondary">ล้างฟอร์ม</button>
+            </div>
+          </form>
+
+          <!-- RM FORM -->
+          <form id="formRM" class="d-none" novalidate>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label">Received_no <span class="req">*</span></label>
+                <input type="text" class="form-control" name="receiveNo" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">วันที่รับเข้า <span class="req">*</span></label>
+                <input type="date" class="form-control" name="receiveDate" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">รหัสวัตถุดิบ <span class="req">*</span></label>
+                <input type="text" class="form-control" name="code" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">ชื่อวัตถุดิบ <span class="req">*</span></label>
+                <input type="text" class="form-control" name="name" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Supplier <span class="req">*</span></label>
+                <input type="text" class="form-control" name="supplier" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Lot <span class="req">*</span></label>
+                <input type="text" class="form-control" name="lot" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">สถานะอนุมัติ <span class="req">*</span></label>
+                <select class="form-select" name="status" required>
+                  <option value="" selected disabled>เลือกสถานะ</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Quarantine">Quarantine</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Retain">Retain</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">ผู้ตรวจ</label>
+                <input type="text" class="form-control" name="inspector">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">ผู้อนุมัติ</label>
+                <input type="text" class="form-control" name="approver">
+              </div>
+            </div>
+            <div class="d-flex gap-2 mt-4">
+              <button type="submit" class="btn btn-brand"><i class="bi bi-check2-circle"></i> บันทึกข้อมูล RM</button>
+              <button type="reset" class="btn btn-outline-secondary">ล้างฟอร์ม</button>
+            </div>
+          </form>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== PAGE: DATA TABLE / SEARCH ====================== -->
+    <section id="page-table" class="page-section d-none">
+      <ul class="nav nav-tabs table-tabs" id="tableTab" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" data-tab="PK" type="button"><i class="bi bi-box-seam"></i> บรรจุภัณฑ์ (PK)</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-tab="RM" type="button"><i class="bi bi-droplet-half"></i> วัตถุดิบ (RM)</button>
+        </li>
+      </ul>
+
+      <div class="filter-bar">
+        <div class="row g-2 align-items-center">
+          <div class="col-12 col-md-5">
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+              <input type="text" class="form-control" id="searchInput" placeholder="ค้นหาชื่อ / Lot / Supplier">
+            </div>
+          </div>
+          <div class="col-8 col-md-3">
+            <select class="form-select" id="statusFilter">
+              <option value="">ทุกสถานะ</option>
+            </select>
+          </div>
+          <div class="col-4 col-md-2">
+            <button class="btn btn-outline-secondary w-100" id="clearFilterBtn"><i class="bi bi-x-circle"></i> ล้าง</button>
+          </div>
+          <div class="col-12 col-md-2 text-md-end">
+            <span class="badge text-bg-light border" id="resultCount">0 / 0 รายการ</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-responsive data-table-wrap">
+        <table class="table align-middle data-table" id="dataTable">
+          <thead><tr id="tableHeadRow"></tr></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+        <div id="tableEmpty" class="empty-state d-none py-5">
+          <i class="bi bi-search"></i>
+          <h2>ไม่พบข้อมูลที่ตรงกับการค้นหา</h2>
+          <p>ลองปรับคำค้นหาหรือตัวกรองสถานะดูใหม่</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== PAGE: IMPORT / EXPORT ====================== -->
+    <section id="page-io" class="page-section d-none">
+      <div class="row g-3">
+        <div class="col-12 col-lg-6">
+          <div class="card io-card h-100">
+            <div class="card-body">
+              <h2 class="io-card-title"><i class="bi bi-file-earmark-arrow-up"></i> นำเข้าข้อมูลจาก Excel</h2>
+              <p class="text-muted">รองรับไฟล์ .xlsx ที่มีชีตชื่อ "PK" และ/หรือ "RM" ตามโครงสร้างคอลัมน์ของบริษัท</p>
+
+              <div class="mb-3">
+                <input class="form-control" type="file" id="importFile" accept=".xlsx,.xls">
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label d-block">วิธีนำเข้า</label>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="importMode" id="modeAppend" value="append" checked>
+                  <label class="form-check-label" for="modeAppend">เพิ่มต่อจากข้อมูลเดิม</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="importMode" id="modeReplace" value="replace">
+                  <label class="form-check-label" for="modeReplace">แทนที่ข้อมูลเดิมทั้งหมด</label>
+                </div>
+              </div>
+
+              <button class="btn btn-outline-brand" id="previewImportBtn" disabled><i class="bi bi-eye"></i> ตรวจสอบไฟล์</button>
+
+              <div id="importPreview" class="import-preview d-none">
+                <div class="alert alert-light border" id="importSummary"></div>
+                <button class="btn btn-brand" id="confirmImportBtn"><i class="bi bi-check2-circle"></i> ยืนยันนำเข้าข้อมูล</button>
+              </div>
+              <div id="importLog" class="import-log small mt-3"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+          <div class="card io-card h-100">
+            <div class="card-body">
+              <h2 class="io-card-title"><i class="bi bi-file-earmark-arrow-down"></i> ส่งออกข้อมูลเป็น Excel</h2>
+              <p class="text-muted">ดาวน์โหลดข้อมูลทั้งหมดในระบบ (PK และ RM) เป็นไฟล์ .xlsx ไฟล์เดียว สำรองไว้ หรือนำกลับเข้าระบบได้ในอนาคต</p>
+              <button class="btn btn-brand" id="exportBtn"><i class="bi bi-download"></i> ดาวน์โหลด Excel</button>
+
+              <hr class="my-4">
+
+              <h2 class="io-card-title text-danger"><i class="bi bi-exclamation-triangle"></i> ล้างข้อมูลทั้งหมด</h2>
+              <p class="text-muted">ลบข้อมูล PK และ RM ทั้งหมดที่บันทึกไว้ในเบราว์เซอร์นี้ การลบไม่สามารถย้อนกลับได้</p>
+              <button class="btn btn-outline-danger" id="resetAllBtn"><i class="bi bi-trash3"></i> ล้างข้อมูลทั้งหมด</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ====================== EDIT MODAL ====================== -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editModalTitle">แก้ไขข้อมูล</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="editModalBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+        <button type="button" class="btn btn-brand" id="saveEditBtn"><i class="bi bi-check2-circle"></i> บันทึกการแก้ไข</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+
+<!-- Confirm dialog (delete / reset) -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">ยืนยันการดำเนินการ</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="confirmModalBody">คุณแน่ใจหรือไม่?</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+        <button type="button" class="btn btn-danger" id="confirmModalOkBtn">ยืนยัน</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<!-- App -->
+<script src="assets/js/app.js"></script>
+</body>
+</html>
