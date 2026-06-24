@@ -71,7 +71,7 @@ body{
 .brand-sub{ font-size:.72rem; color:rgba(255,255,255,.55); }
 
 .sidebar-link{
-  color:rgba(255,255,255,.72) !important;
+  color:rgba(255,255,255,.92) !important;
   display:flex; align-items:center; gap:.65rem;
   padding:.6rem .8rem;
   border-radius:8px;
