@@ -10,39 +10,51 @@
    * 1) SCHEMA — โครงสร้างคอลัมน์ของ PK และ RM
    *    key       = ชื่อฟิลด์ที่ใช้ภายในระบบ
    *    label     = หัวคอลัมน์ที่แสดงผล / หัวคอลัมน์ตอน export
-   *    type      = text | date | number | status
+   *    type      = text | date | number | status | boolean
    *    aliases   = ชื่อหัวคอลัมน์ที่เป็นไปได้ตอน "นำเข้า Excel"
-   *                (ใส่ไว้หลายแบบเผื่อไฟล์จริงเขียนต่างไปเล็กน้อย)
    * ------------------------------------------------------------------ */
   var PK_SCHEMA = [
+    { key: 'year',        label: 'ปี',                type: 'text',   aliases: ['ปี', 'year'] },
     { key: 'receiveNo',   label: 'เลขที่รับเข้า',     type: 'text',   aliases: ['เลขที่รับเข้า', 'receive_no', 'receiveno', 'เลขที่รับ', 'received_no'] },
-    { key: 'receiveDate', label: 'วันที่รับเข้า',      type: 'date',   aliases: ['วันที่รับเข้า', 'receive_date', 'receivedate'] },
     { key: 'inspectDate', label: 'วันที่ตรวจสอบ',     type: 'date',   aliases: ['วันที่ตรวจสอบ', 'inspect_date', 'inspectdate'] },
+    { key: 'receiveDate', label: 'วันที่รับเข้า',      type: 'date',   aliases: ['วันที่รับเข้า', 'receive_date', 'receivedate'] },
+    { key: 'retestDate',  label: 'Retest Date',       type: 'date',   aliases: ['retest date', 'retest_date', 'retestdate'] },
     { key: 'code',        label: 'รหัส',              type: 'text',   aliases: ['รหัส', 'code', 'item_code'] },
     { key: 'name',        label: 'ชื่อบรรจุภัณฑ์',    type: 'text',   aliases: ['ชื่อบรรจุภัณฑ์', 'name', 'item_name', 'ชื่อสินค้า'] },
     { key: 'supplier',    label: 'Supplier',          type: 'text',   aliases: ['supplier', 'ผู้ขาย'] },
     { key: 'lot',         label: 'Lot',               type: 'text',   aliases: ['lot', 'lotno', 'lot_no'] },
     { key: 'qty',         label: 'จำนวน(ชิ้น)',       type: 'number', aliases: ['จำนวน(ชิ้น)', 'จำนวน', 'qty', 'quantity'] },
-    { key: 'status',      label: 'สถานะ',             type: 'status', aliases: ['สถานะ', 'status'] },
+    { key: 'status',      label: 'สถานะ',             type: 'status', statusColumns: { 'ผ่าน': 'ผ่าน', 'Quarantine': 'Quarantine', 'Rejected': 'Rejected' } },
+    { key: 'approveDate', label: 'วันที่อนุมัติ',      type: 'date',   aliases: ['วันที่อนุมัติ', 'approve_date'] },
     { key: 'inspector',   label: 'ผู้ตรวจ',           type: 'text',   aliases: ['ผู้ตรวจ', 'inspector'] },
     { key: 'approver',    label: 'ผู้อนุมัติ',        type: 'text',   aliases: ['ผู้อนุมัติ', 'approver'] },
-    { key: 'defectType',  label: 'ประเภท Defect',     type: 'text',   aliases: ['ประเภทdefect', 'defect', 'defect_type', 'defecttype'] }
+    { key: 'remark',      label: 'หมายเหตุ',          type: 'text',   aliases: ['หมายเหตุ', 'remark'] },
+    { key: 'defectType',  label: 'ประเภท Defect',     type: 'text',   aliases: ['ประเภท defect (auto)', 'ประเภทdefect', 'defect', 'defect_type', 'defecttype'] }
   ];
 
   var RM_SCHEMA = [
-    { key: 'receiveNo',   label: 'Received_no',       type: 'text',   aliases: ['received_no', 'receivedno', 'เลขที่รับเข้า'] },
-    { key: 'receiveDate', label: 'วันที่รับเข้า',      type: 'date',   aliases: ['วันที่รับเข้า', 'receive_date', 'receivedate'] },
-    { key: 'code',        label: 'รหัสวัตถุดิบ',      type: 'text',   aliases: ['รหัสวัตถุดิบ', 'code', 'rm_code'] },
-    { key: 'name',        label: 'ชื่อวัตถุดิบ',      type: 'text',   aliases: ['ชื่อวัตถุดิบ', 'name', 'rm_name'] },
-    { key: 'supplier',    label: 'Supplier',          type: 'text',   aliases: ['supplier', 'ผู้ขาย'] },
-    { key: 'lot',         label: 'Lot',               type: 'text',   aliases: ['lot', 'lotno', 'lot_no'] },
-    { key: 'status',      label: 'สถานะอนุมัติ',      type: 'status', aliases: ['สถานะอนุมัติ', 'status', 'approval_status'] },
-    { key: 'inspector',   label: 'ผู้ตรวจ',           type: 'text',   aliases: ['ผู้ตรวจ', 'inspector'] },
-    { key: 'approver',    label: 'ผู้อนุมัติ',        type: 'text',   aliases: ['ผู้อนุมัติ', 'approver'] }
+    { key: 'receiveNo',   label: 'Received_no',       type: 'text',    aliases: ['received_no', 'receivedno', 'เลขที่รับเข้า'] },
+    { key: 'receiveDate', label: 'วันที่รับเข้า',      type: 'date',    aliases: ['วันที่รับเข้า', 'receive_date', 'receivedate'] },
+    { key: 'retestDate',  label: 'Retest_Date',       type: 'date',    aliases: ['retest_date', 'retest date', 'retestdate'] },
+    { key: 'code',        label: 'รหัสวัตถุดิบ',      type: 'text',    aliases: ['รหัสวัตถุดิบ', 'code', 'rm_code'] },
+    { key: 'name',        label: 'ชื่อวัตถุดิบ',      type: 'text',    aliases: ['ชื่อวัตถุดิบ', 'name', 'rm_name'] },
+    { key: 'supplier',    label: 'Supplier',          type: 'text',    aliases: ['supplier', 'ผู้ขาย'] },
+    { key: 'lot',         label: 'Lot',               type: 'text',    aliases: ['lot', 'lotno', 'lot_no'] },
+    { key: 'deliveryNo',  label: 'เลขที่ใบส่งสินค้า',  type: 'text',    aliases: ['เลขที่ใบส่งสินค้า'] },
+    { key: 'receiver',    label: 'ผู้รับสินค้า',      type: 'text',    aliases: ['ผู้รับสินค้า'] },
+    { key: 'expDate',     label: 'Exp.Date',          type: 'date',    aliases: ['exp.date', 'expdate', 'exp_date'] },
+    { key: 'coa',         label: 'COA',               type: 'boolean', aliases: ['coa'] },
+    { key: 'status',      label: 'สถานะอนุมัติ',      type: 'status',  statusColumns: { 'Approved': 'Approved', 'Quarantine': 'Quarantine', 'Rejected': 'Rejected' } },
+    { key: 'retain',      label: 'เก็บตัวอย่าง Retain', type: 'boolean', aliases: ['retain'] },
+    { key: 'approveDate', label: 'วันที่อนุมัติ',      type: 'date',    aliases: ['วันที่อนุมัติ', 'approve_date'] },
+    { key: 'inspector',   label: 'ผู้ตรวจ',           type: 'text',    aliases: ['ผู้ตรวจ', 'inspector'] },
+    { key: 'approver',    label: 'ผู้อนุมัติ',        type: 'text',    aliases: ['ผู้อนุมัติ', 'approver'] },
+    { key: 'remark',      label: 'หมายเหตุ',          type: 'text',    aliases: ['หมายเหตุ', 'remark'] },
+    { key: 'remark2',     label: 'Remark',            type: 'text',    aliases: ['remark'] }
   ];
 
   var PK_STATUSES = ['ผ่าน', 'Quarantine', 'Rejected'];
-  var RM_STATUSES = ['Approved', 'Quarantine', 'Rejected', 'Retain'];
+  var RM_STATUSES = ['Approved', 'Quarantine', 'Rejected'];
 
   var STATUS_COLOR_HEX = { pass: '#1B998B', warn: '#E8A33D', danger: '#D7263D', retain: '#5E60CE', neutral: '#5C6784' };
 
@@ -120,8 +132,7 @@
       RM: {
         'Approved':   { cls: 'status-pass',   icon: 'bi-check-circle-fill',       color: 'pass' },
         'Quarantine': { cls: 'status-warn',   icon: 'bi-exclamation-triangle-fill', color: 'warn' },
-        'Rejected':   { cls: 'status-danger', icon: 'bi-x-circle-fill',           color: 'danger' },
-        'Retain':     { cls: 'status-retain', icon: 'bi-archive-fill',            color: 'retain' }
+        'Rejected':   { cls: 'status-danger', icon: 'bi-x-circle-fill',           color: 'danger' }
       }
     };
     return (map[type] && map[type][status]) || { cls: 'status-warn', icon: 'bi-question-circle', color: 'neutral' };
@@ -187,7 +198,6 @@
     if (page === 'dashboard') renderDashboard();
     if (page === 'table') { renderTableHead(); populateStatusFilterOptions(); renderTableBody(); }
 
-    // ปิดเมนูข้าง (offcanvas) บนมือถือ/แท็บเล็ตหลังกดเมนู
     var sidebarEl = document.getElementById('sidebar');
     var oc = bootstrap.Offcanvas.getInstance(sidebarEl);
     if (oc) oc.hide();
@@ -299,6 +309,7 @@
     schema.forEach(function (f) {
       var val = fd.get(f.key);
       if (f.type === 'number') val = (val === '' || val === null) ? '' : Number(val);
+      if (f.type === 'boolean') val = (val === 'on');
       record[f.key] = (val === null) ? '' : val;
     });
     record.id = genId();
@@ -372,6 +383,7 @@
         var val = r[f.key];
         if (f.type === 'status') return '<td>' + statusBadgeHTML(type, val) + '</td>';
         if (f.type === 'date') return '<td>' + formatDateDisplay(val) + '</td>';
+        if (f.type === 'boolean') return '<td>' + (val ? '<span class="status-badge status-pass"><i class="bi bi-check-circle-fill"></i>มี</span>' : '<span class="text-muted">-</span>') + '</td>';
         if (f.type === 'number') return '<td class="mono">' + ((val === '' || val === undefined || val === null) ? '-' : Number(val).toLocaleString('th-TH')) + '</td>';
         return '<td>' + (val ? escapeHtml(String(val)) : '-') + '</td>';
       }).join('');
@@ -399,6 +411,8 @@
           '<option value=""' + (!val ? ' selected' : '') + ' disabled>เลือกสถานะ</option>' + opts + '</select>';
       } else if (f.type === 'date') {
         inputHtml = '<input type="date" class="form-control" name="' + f.key + '" value="' + escapeHtml(val) + '">';
+      } else if (f.type === 'boolean') {
+        inputHtml = '<div class="form-check mt-2"><input class="form-check-input" type="checkbox" name="' + f.key + '"' + (val ? ' checked' : '') + '></div>';
       } else if (f.type === 'number') {
         inputHtml = '<input type="number" min="0" class="form-control" name="' + f.key + '" value="' + escapeHtml(val) + '">';
       } else {
@@ -430,6 +444,7 @@
       schema.forEach(function (f) {
         var val = fd.get(f.key);
         if (f.type === 'number') val = (val === '' || val === null) ? '' : Number(val);
+        if (f.type === 'boolean') val = (val === 'on');
         record[f.key] = (val === null) ? '' : val;
       });
       saveRecords(type, arr);
@@ -454,7 +469,7 @@
   var pendingImport = { PK: [], RM: [] };
 
   function normalizeHeader(h) {
-    return String(h).trim().toLowerCase().replace(/[\s_()]/g, '');
+    return String(h).trim().toLowerCase().replace(/[\s_().]/g, '');
   }
 
   function dateToInputValue(d) {
@@ -473,6 +488,15 @@
     return s;
   }
 
+  function deriveStatus(normalizedRow, statusColumns) {
+    for (var label in statusColumns) {
+      var nk = normalizeHeader(statusColumns[label]);
+      var val = normalizedRow[nk];
+      if (val !== undefined && String(val).trim() !== '') return label;
+    }
+    return '';
+  }
+
   function mapRowToRecord(type, rawRow) {
     var schema = getSchema(type);
     var normalizedRow = {};
@@ -480,6 +504,10 @@
 
     var record = {};
     schema.forEach(function (f) {
+      if (f.type === 'status') {
+        record[f.key] = deriveStatus(normalizedRow, f.statusColumns);
+        return;
+      }
       var val = '';
       for (var i = 0; i < f.aliases.length; i++) {
         var nk = normalizeHeader(f.aliases[i]);
@@ -490,12 +518,36 @@
       }
       if (f.type === 'date') val = normalizeDateValue(val);
       else if (f.type === 'number') val = (val === '' || val === undefined) ? '' : (Number(val) || 0);
+      else if (f.type === 'boolean') val = (String(val).trim() !== '');
       else val = (typeof val === 'string') ? val.trim() : (val === undefined ? '' : val);
       record[f.key] = val;
     });
     record.id = genId();
     record.createdAt = Date.now();
     return record;
+  }
+
+  function detectHeaderRowIndex(sheet, schema) {
+    var rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    var keywords = [];
+    schema.forEach(function (f) {
+      if (f.type === 'status' && f.statusColumns) {
+        Object.keys(f.statusColumns).forEach(function (label) { keywords.push(normalizeHeader(f.statusColumns[label])); });
+      }
+      (f.aliases || []).forEach(function (a) { keywords.push(normalizeHeader(a)); });
+    });
+    var bestIdx = 0, bestScore = -1;
+    var scanLimit = Math.min(rawRows.length, 6);
+    for (var i = 0; i < scanLimit; i++) {
+      var rowCells = rawRows[i] || [];
+      var score = 0;
+      rowCells.forEach(function (cell) {
+        var n = normalizeHeader(cell);
+        if (n && keywords.indexOf(n) !== -1) score++;
+      });
+      if (score > bestScore) { bestScore = score; bestIdx = i; }
+    }
+    return bestIdx;
   }
 
   function findSheetName(workbook, keywords) {
@@ -527,7 +579,8 @@
         var logLines = [];
 
         if (pkSheetName) {
-          var pkRows = XLSX.utils.sheet_to_json(workbook.Sheets[pkSheetName], { defval: '' });
+          var pkHeaderIdx = detectHeaderRowIndex(workbook.Sheets[pkSheetName], PK_SCHEMA);
+          var pkRows = XLSX.utils.sheet_to_json(workbook.Sheets[pkSheetName], { defval: '', range: pkHeaderIdx });
           pendingImport.PK = pkRows.map(function (row) { return mapRowToRecord('PK', row); });
           logLines.push('พบชีต "' + pkSheetName + '" → ' + pendingImport.PK.length + ' แถว (PK)');
         } else {
@@ -535,7 +588,8 @@
         }
 
         if (rmSheetName) {
-          var rmRows = XLSX.utils.sheet_to_json(workbook.Sheets[rmSheetName], { defval: '' });
+          var rmHeaderIdx = detectHeaderRowIndex(workbook.Sheets[rmSheetName], RM_SCHEMA);
+          var rmRows = XLSX.utils.sheet_to_json(workbook.Sheets[rmSheetName], { defval: '', range: rmHeaderIdx });
           pendingImport.RM = rmRows.map(function (row) { return mapRowToRecord('RM', row); });
           logLines.push('พบชีต "' + rmSheetName + '" → ' + pendingImport.RM.length + ' แถว (RM)');
         } else {
@@ -598,7 +652,17 @@
     var data = loadRecords(type);
     return data.map(function (r) {
       var obj = {};
-      schema.forEach(function (f) { obj[f.label] = (r[f.key] === undefined || r[f.key] === null) ? '' : r[f.key]; });
+      schema.forEach(function (f) {
+        if (f.type === 'status') {
+          Object.keys(f.statusColumns).forEach(function (label) {
+            obj[f.statusColumns[label]] = (r.status === label) ? '✓' : '';
+          });
+        } else if (f.type === 'boolean') {
+          obj[f.label] = r[f.key] ? '✓' : '';
+        } else {
+          obj[f.label] = (r[f.key] === undefined || r[f.key] === null) ? '' : r[f.key];
+        }
+      });
       return obj;
     });
   }
@@ -648,7 +712,6 @@
    * ------------------------------------------------------------------ */
   document.addEventListener('DOMContentLoaded', function () {
 
-    // --- Sidebar navigation ---
     document.querySelectorAll('.sidebar-link').forEach(function (a) {
       a.addEventListener('click', function (e) {
         e.preventDefault();
@@ -659,7 +722,6 @@
       btn.addEventListener('click', function () { gotoPage(btn.dataset.goto); });
     });
 
-    // --- Entry: type switch ---
     document.getElementById('entryTypePK').addEventListener('change', function () {
       document.getElementById('formPK').classList.remove('d-none');
       document.getElementById('formRM').classList.add('d-none');
@@ -671,7 +733,6 @@
     document.getElementById('formPK').addEventListener('submit', function (e) { handleEntrySubmit(e, 'PK'); });
     document.getElementById('formRM').addEventListener('submit', function (e) { handleEntrySubmit(e, 'RM'); });
 
-    // --- Table: tabs / search / filter ---
     document.querySelectorAll('#tableTab .nav-link').forEach(function (btn) {
       btn.addEventListener('click', function () {
         document.querySelectorAll('#tableTab .nav-link').forEach(function (b) { b.classList.remove('active'); });
@@ -706,7 +767,6 @@
       if (delBtn) deleteRecord(tableState.currentTab, delBtn.dataset.id);
     });
 
-    // --- Import / Export ---
     document.getElementById('importFile').addEventListener('change', function () {
       document.getElementById('previewImportBtn').disabled = !this.files.length;
       document.getElementById('importPreview').classList.add('d-none');
@@ -716,7 +776,6 @@
     document.getElementById('exportBtn').addEventListener('click', handleExport);
     document.getElementById('resetAllBtn').addEventListener('click', handleResetAll);
 
-    // --- Initial render ---
     renderTableHead();
     populateStatusFilterOptions();
     var initialPage = (location.hash || '').replace('#', '') || 'dashboard';
