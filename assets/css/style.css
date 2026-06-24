@@ -12,7 +12,7 @@
 
   --color-primary:   #14213D; /* sidebar / หัวเรื่องหลัก */
   --color-brand:     #14213D; /* ปุ่ม / active state */
-  --color-brand-soft:#EAEEFB;
+  --color-brand-soft:#14213D;
 
   --color-pass:      #1B998B; /* ผ่าน / Approved */
   --color-pass-soft: #E4F5F2;
