@@ -195,9 +195,10 @@
     statuses.forEach(function (s) { counts[s] = 0; });
     data.forEach(function (r) { if (counts.hasOwnProperty(r.status)) counts[r.status]++; });
     var total = data.length;
+    var knownTotal = statuses.reduce(function (sum, s) { return sum + counts[s]; }, 0);
     var passKey = type === 'PK' ? 'ผ่าน' : 'Approved';
-    var passRate = total ? ((counts[passKey] / total) * 100).toFixed(1) : '0.0';
-    return { total: total, counts: counts, passRate: passRate };
+    var passRate = knownTotal ? ((counts[passKey] / knownTotal) * 100).toFixed(1) : '0.0';
+    return { total: total, knownTotal: knownTotal, counts: counts, passRate: passRate };
   }
 
   function renderStatusChart(canvasId, emptyId, type, data) {
@@ -440,6 +441,7 @@
   }
 
   var pendingImport = { PK: [], RM: [] };
+  var pendingImportFound = { PK: false, RM: false };
 
   function normalizeHeader(h) {
     return String(h).trim().toLowerCase().replace(/[\s_().]/g, '');
@@ -455,6 +457,7 @@
     if (!val) return '';
     if (val instanceof Date && !isNaN(val)) return dateToInputValue(val);
     var s = String(val).trim();
+    if (/^(null|undefined|nan|n\/a|none|-)$/i.test(s)) return '';
     if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
     var m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
     if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
@@ -549,6 +552,8 @@
 
         pendingImport.PK = [];
         pendingImport.RM = [];
+        pendingImportFound.PK = !!pkSheetName;
+        pendingImportFound.RM = !!rmSheetName;
         var logLines = [];
 
         if (pkSheetName) {
@@ -588,18 +593,16 @@
     var mode = document.querySelector('input[name="importMode"]:checked').value;
     var addedPK = pendingImport.PK.length, addedRM = pendingImport.RM.length;
 
-    if (pendingImport.PK.length) {
+    // สำคัญ: ถ้าไฟล์ที่อัปโหลด "ไม่มี" ชีต PK หรือ RM เลย จะไม่แตะข้อมูลเดิมของประเภทนั้น
+    // แม้เลือกโหมด "แทนที่ข้อมูลเดิม" ก็ตาม — ป้องกันข้อมูลอีกประเภทถูกลบไปโดยไม่ตั้งใจ
+    if (pendingImportFound.PK) {
       var pkArr = mode === 'replace' ? pendingImport.PK : loadRecords('PK').concat(pendingImport.PK);
       saveRecords('PK', pkArr);
-    } else if (mode === 'replace') {
-      saveRecords('PK', []);
     }
 
-    if (pendingImport.RM.length) {
+    if (pendingImportFound.RM) {
       var rmArr = mode === 'replace' ? pendingImport.RM : loadRecords('RM').concat(pendingImport.RM);
       saveRecords('RM', rmArr);
-    } else if (mode === 'replace') {
-      saveRecords('RM', []);
     }
 
     var logEl = document.getElementById('importLog');
@@ -612,6 +615,7 @@
     document.getElementById('importFile').value = '';
     document.getElementById('previewImportBtn').disabled = true;
     pendingImport = { PK: [], RM: [] };
+    pendingImportFound = { PK: false, RM: false };
 
     showToast('นำเข้าข้อมูลเรียบร้อยแล้ว', 'success');
     refreshAll();
@@ -671,9 +675,6 @@
     el.textContent = new Date().toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
   }
 
-  /* ------------------------------------------------------------------
-   * THEME SWITCHER (โหมดสว่าง/มืด + สีหลัก 5 แบบ)
-   * ------------------------------------------------------------------ */
   var THEME_KEY = 'qc_theme_mode';
   var ACCENT_KEY = 'qc_theme_accent';
 
