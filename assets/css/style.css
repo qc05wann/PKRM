@@ -4,20 +4,23 @@
    กับโทนสีอุตสาหกรรมสะอาดตา อ่านง่ายบนแท็บเล็ตหน้าไลน์ผลิต
    =================================================================== */
 :root{
-  --color-bg:        #14213D;
+  --color-bg:        #F3F5F8;
+  --color-bg-subtle: #F8F9FB;
   --color-surface:   #FFFFFF;
   --color-ink:       #1C2541;
   --color-ink-soft:  #5C6784;
-  --color-border:    #FFFFFF;
+  --color-border:    #E2E6ED;
+  --color-scrollbar: #CBD2DE;
 
-  --color-primary:   #14213D; /* sidebar / หัวเรื่องหลัก */
-  --color-brand:     #3454D1; /* ปุ่ม / active state */
+  --color-primary:   #14213D; /* sidebar / หัวเรื่องหลัก (คงที่ทุกธีม) */
+  --color-brand:     #3454D1; /* ปุ่ม / active state (เปลี่ยนได้ตามธีมสี) */
   --color-brand-soft:#EAEEFB;
 
   --color-pass:      #1B998B; /* ผ่าน / Approved */
   --color-pass-soft: #E4F5F2;
   --color-warn:      #E8A33D; /* Quarantine */
   --color-warn-soft: #FBF0DF;
+  --color-warn-text: #9C6A1E;
   --color-danger:    #D7263D; /* Rejected */
   --color-danger-soft:#FBE4E7;
   --color-retain:    #5E60CE; /* Retain (RM) */
@@ -30,6 +33,38 @@
   --shadow-sm: 0 1px 2px rgba(28,37,65,.06), 0 1px 1px rgba(28,37,65,.04);
   --shadow-md: 0 6px 16px rgba(28,37,65,.08);
 }
+
+/* ============== Dark mode ==============
+   สลับด้วย attribute data-theme="dark" บน <html> (สีฝั่ง sidebar คงที่ไม่เปลี่ยน) */
+[data-theme="dark"]{
+  --color-bg:        #0F1420;
+  --color-bg-subtle: #1B2333;
+  --color-surface:   #1A2236;
+  --color-ink:       #E8EAF0;
+  --color-ink-soft:  #9AA3B8;
+  --color-border:    #2B3550;
+  --color-scrollbar: #3A4566;
+
+  --color-pass-soft: rgba(27,153,139,.18);
+  --color-warn-soft: rgba(232,163,61,.18);
+  --color-warn-text: #F0BD68;
+  --color-danger-soft:rgba(215,38,61,.20);
+  --color-retain-soft:rgba(94,96,206,.22);
+  --color-brand-soft: rgba(52,84,209,.20);
+}
+
+/* ============== Accent color presets ==============
+   สลับด้วย attribute data-accent="..." บน <html> (ไม่กระทบสี primary/sidebar) */
+[data-accent="indigo"]{ --color-brand:#3454D1; --color-brand-soft:#EAEEFB; }
+[data-accent="teal"]  { --color-brand:#0F9B8E; --color-brand-soft:#E2F6F4; }
+[data-accent="rose"]  { --color-brand:#D63384; --color-brand-soft:#FCE4EF; }
+[data-accent="amber"] { --color-brand:#D97706; --color-brand-soft:#FDF1DD; }
+[data-accent="violet"]{ --color-brand:#7C3AED; --color-brand-soft:#F0E9FE; }
+[data-theme="dark"][data-accent="indigo"]{ --color-brand-soft: rgba(52,84,209,.20); }
+[data-theme="dark"][data-accent="teal"]  { --color-brand-soft: rgba(15,155,142,.20); }
+[data-theme="dark"][data-accent="rose"]  { --color-brand-soft: rgba(214,51,132,.20); }
+[data-theme="dark"][data-accent="amber"] { --color-brand-soft: rgba(217,119,6,.20); }
+[data-theme="dark"][data-accent="violet"]{ --color-brand-soft: rgba(124,58,237,.20); }
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
@@ -52,7 +87,7 @@ body{
 /* Sidebar */
 .sidebar{
   width:260px;
-  background:var(--color-primary) !important;
+  background-color:var(--color-primary) !important;
   color:#fff;
   border:0;
 }
@@ -71,7 +106,7 @@ body{
 .brand-sub{ font-size:.72rem; color:rgba(255,255,255,.55); }
 
 .sidebar-link{
-  color:rgba(255,255,255,.08) !important;
+  color:rgba(255,255,255,.72) !important;
   display:flex; align-items:center; gap:.65rem;
   padding:.6rem .8rem;
   border-radius:8px;
@@ -182,7 +217,7 @@ body{
   font-size:.76rem; font-weight:600;
 }
 .status-pass{ background:var(--color-pass-soft); color:var(--color-pass); }
-.status-warn{ background:var(--color-warn-soft); color:#9C6A1E; }
+.status-warn{ background:var(--color-warn-soft); color:var(--color-warn-text); }
 .status-danger{ background:var(--color-danger-soft); color:var(--color-danger); }
 .status-retain{ background:var(--color-retain-soft); color:var(--color-retain); }
 .status-badge i{ font-size:.65rem; }
@@ -213,7 +248,7 @@ body{
 }
 .data-table{ margin-bottom:0; font-size:.86rem; }
 .data-table thead th{
-  background:#F8F9FB; color:var(--color-ink-soft);
+  background:var(--color-bg-subtle); color:var(--color-ink-soft);
   font-size:.74rem; text-transform:uppercase; letter-spacing:.03em;
   font-weight:700; border-bottom:1px solid var(--color-border);
   white-space:nowrap;
@@ -243,4 +278,30 @@ body{
 }
 
 ::-webkit-scrollbar{ width:8px; height:8px; }
-::-webkit-scrollbar-thumb{ background:#CBD2DE; border-radius:4px; }
+::-webkit-scrollbar-thumb{ background:var(--color-scrollbar); border-radius:4px; }
+
+/* ============== Theme switcher ============== */
+.theme-panel{
+  width:250px;
+  border:1px solid var(--color-border);
+  box-shadow:var(--shadow-md);
+}
+.theme-section-label{
+  font-size:.72rem; text-transform:uppercase; letter-spacing:.04em;
+  color:var(--color-ink-soft); font-weight:700; margin-bottom:.5rem;
+}
+.theme-mode-switch{ margin-bottom:1rem; }
+.theme-mode-switch .btn{ font-weight:600; }
+.accent-swatches{ display:flex; gap:.55rem; flex-wrap:wrap; }
+.accent-swatch{
+  width:30px; height:30px; border-radius:50%;
+  background:var(--swatch);
+  border:2px solid var(--color-surface);
+  outline:2px solid transparent;
+  cursor:pointer; padding:0;
+  display:inline-flex; align-items:center; justify-content:center;
+  color:#fff; font-size:.85rem;
+  transition:outline-color .15s ease, transform .15s ease;
+}
+.accent-swatch:hover{ transform:scale(1.08); }
+.accent-swatch.active{ outline-color:var(--swatch); }
