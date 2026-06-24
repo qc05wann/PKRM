@@ -15,6 +15,19 @@
 
 <!-- Custom styles -->
 <link href="assets/css/style.css" rel="stylesheet">
+
+<!-- ป้องกันหน้ากระพริบสีผิดตอนโหลด: อ่านธีมที่บันทึกไว้แล้ว apply ก่อน CSS วาดผล -->
+<script>
+(function () {
+  try {
+    var savedTheme = localStorage.getItem('qc_theme_mode') || 'light';
+    var savedAccent = localStorage.getItem('qc_theme_accent') || 'indigo';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    document.documentElement.setAttribute('data-bs-theme', savedTheme);
+    document.documentElement.setAttribute('data-accent', savedAccent);
+  } catch (e) {}
+})();
+</script>
 </head>
 <body>
 
@@ -65,6 +78,29 @@
     <h1 class="topbar-title mb-0" id="pageTitle">ภาพรวม (Dashboard)</h1>
     <div class="ms-auto d-flex align-items-center gap-2">
       <span class="d-none d-sm-inline text-muted small" id="clock"></span>
+
+      <div class="dropdown">
+        <button class="btn btn-icon" type="button" id="themeBtn" data-bs-toggle="dropdown" aria-expanded="false" title="เปลี่ยนธีม">
+          <i class="bi bi-palette2 fs-5"></i>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end p-3 theme-panel" aria-labelledby="themeBtn">
+          <div class="theme-section-label">โหมดการแสดงผล</div>
+          <div class="btn-group w-100 theme-mode-switch" role="group">
+            <input type="radio" class="btn-check" name="themeMode" id="modeLight" value="light" autocomplete="off">
+            <label class="btn btn-outline-brand btn-sm" for="modeLight"><i class="bi bi-sun-fill"></i> สว่าง</label>
+            <input type="radio" class="btn-check" name="themeMode" id="modeDark" value="dark" autocomplete="off">
+            <label class="btn btn-outline-brand btn-sm" for="modeDark"><i class="bi bi-moon-stars-fill"></i> มืด</label>
+          </div>
+          <div class="theme-section-label">สีหลัก</div>
+          <div class="accent-swatches">
+            <button type="button" class="accent-swatch" data-accent="indigo" style="--swatch:#3454D1" title="Indigo"></button>
+            <button type="button" class="accent-swatch" data-accent="teal" style="--swatch:#0F9B8E" title="Teal"></button>
+            <button type="button" class="accent-swatch" data-accent="rose" style="--swatch:#D63384" title="Rose"></button>
+            <button type="button" class="accent-swatch" data-accent="amber" style="--swatch:#D97706" title="Amber"></button>
+            <button type="button" class="accent-swatch" data-accent="violet" style="--swatch:#7C3AED" title="Violet"></button>
+          </div>
+        </div>
+      </div>
     </div>
   </header>
 
