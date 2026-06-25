@@ -336,3 +336,11 @@ body{
 .daily-summary-table tbody tr.weekend-row{ background:var(--color-primary); color:#fff; }
 .daily-summary-table tbody tr.weekend-row td{ border-color:rgba(255,255,255,.15); }
 .daily-total-row{ font-weight:700; background:var(--color-bg-subtle); }
+
+/* ============== Quality analysis page ============== */
+.kpi-value-sm{ font-size:1.05rem; line-height:1.3; word-break:break-word; min-height:1.3em; }
+.data-table th.sortable{ cursor:pointer; user-select:none; }
+.data-table th.sortable:hover{ color:var(--color-brand); }
+.data-table th.sortable.sort-asc::after{ content:' \25B2'; font-size:.62rem; }
+.data-table th.sortable.sort-desc::after{ content:' \25BC'; font-size:.62rem; }
+.grade-badge{ min-width:26px; justify-content:center; font-weight:700; }
