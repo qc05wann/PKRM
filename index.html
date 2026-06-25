@@ -557,9 +557,9 @@
           <div class="col-6 col-xl-3">
             <div class="kpi-card">
               <div class="kpi-bar bar-danger"></div>
-              <div class="kpi-label">รายการที่พบปัญหา</div>
+              <div class="kpi-label">รายการที่มีบันทึก Defect</div>
               <div class="kpi-value mono" id="defectTotalProblem">0</div>
-              <div class="kpi-unit">รายการ (Quarantine+Rejected)</div>
+              <div class="kpi-unit">รายการ (ทุกสถานะ)</div>
             </div>
           </div>
           <div class="col-6 col-xl-3">
@@ -580,6 +580,8 @@
           </div>
         </div>
 
+        <p class="text-muted small mt-2 mb-0" id="defectStatusBreakdown"></p>
+
         <div class="row g-3 mt-1">
           <div class="col-12 col-lg-5">
             <div class="chart-card h-100">
@@ -599,14 +601,14 @@
                 <div id="defectTableEmpty" class="empty-state d-none py-4">
                   <i class="bi bi-emoji-smile"></i>
                   <h2>ยังไม่พบ Defect ในข้อมูล</h2>
-                  <p>ไม่มีรายการที่ Quarantine/Rejected ซึ่งระบุประเภท Defect หรือหมายเหตุไว้</p>
+                  <p>ไม่มีรายการที่ระบุประเภท Defect หรือหมายเหตุไว้</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
         <p class="text-muted small mt-2">
-          <i class="bi bi-info-circle"></i> นับจากรายการที่สถานะ Quarantine หรือ Rejected เท่านั้น โดยใช้ข้อความจากช่อง "ประเภท Defect" ถ้ามี (เฉพาะ PK) หรือ "หมายเหตุ" เป็นตัวจัดกลุ่ม
+          <i class="bi bi-info-circle"></i> นับจากทุกรายการที่มีข้อความในช่อง "ประเภท Defect" (เฉพาะ PK) หรือ "หมายเหตุ" — ไม่ว่าสถานะสุดท้ายจะเป็นผ่าน/Quarantine/Rejected ก็ตาม เพื่อให้เห็นข้อบกพร่องที่ถูกบันทึกไว้ทั้งหมด แม้รายการนั้นจะผ่านเกณฑ์ในที่สุด
         </p>
       </div>
 
