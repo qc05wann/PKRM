@@ -411,14 +411,21 @@
   function computeDefectSummary(type) {
     var records = loadRecords(type);
     var passKey = getPassKey(type);
-    var problemRecords = records.filter(function (r) { return r.status && r.status !== passKey; });
 
     var groups = {};
     var totalTagged = 0;
-    problemRecords.forEach(function (r) {
+    var statusBreakdown = {};
+
+    // นับทุกรายการที่มีข้อความ Defect/หมายเหตุ ไม่ว่าสถานะสุดท้ายจะเป็นอะไร
+    // (ในข้อมูลจริงมีการบันทึกตำหนิ/หมายเหตุไว้แม้รายการนั้นสถานะสุดท้ายจะ "ผ่าน" ก็ตาม)
+    records.forEach(function (r) {
       var text = getDefectText(type, r);
       if (!text) return;
       totalTagged++;
+
+      var st = r.status || 'ไม่ระบุสถานะ';
+      statusBreakdown[st] = (statusBreakdown[st] || 0) + 1;
+
       if (!groups[text]) groups[text] = { text: text, count: 0, suppliers: {} };
       groups[text].count++;
       var sup = (r.supplier || '').toString().trim() || 'ไม่ระบุ';
@@ -431,7 +438,7 @@
     });
     list.sort(function (a, b) { return b.count - a.count; });
 
-    return { totalProblem: problemRecords.length, totalTagged: totalTagged, uniqueCount: list.length, top: list[0] || null, list: list };
+    return { totalTagged: totalTagged, uniqueCount: list.length, top: list[0] || null, list: list, statusBreakdown: statusBreakdown, passKey: passKey };
   }
 
   var defectChartInstance = null;
@@ -439,10 +446,19 @@
   function renderDefectPanel() {
     var summary = computeDefectSummary(analysisState.type);
 
-    document.getElementById('defectTotalProblem').textContent = summary.totalProblem;
+    document.getElementById('defectTotalProblem').textContent = summary.totalTagged;
     document.getElementById('defectUniqueCount').textContent = summary.uniqueCount;
     document.getElementById('defectTopName').textContent = summary.top ? summary.top.text : '-';
     document.getElementById('defectTopCount').textContent = (summary.top ? summary.top.count : 0) + ' ครั้ง';
+
+    var breakdownEl = document.getElementById('defectStatusBreakdown');
+    if (breakdownEl) {
+      var parts = Object.keys(summary.statusBreakdown).map(function (st) {
+        var displayLabel = (st === summary.passKey) ? (st + ' (ผ่านแต่มีบันทึกไว้)') : st;
+        return displayLabel + ' ' + summary.statusBreakdown[st] + ' รายการ';
+      });
+      breakdownEl.textContent = parts.length ? ('แยกตามสถานะ: ' + parts.join(' · ')) : '';
+    }
 
     var tbody = document.getElementById('defectTableBody');
     var tableEl = document.getElementById('defectTable');
@@ -879,6 +895,12 @@
           var pkRows = XLSX.utils.sheet_to_json(workbook.Sheets[pkSheetName], { defval: '', range: pkHeaderIdx });
           pendingImport.PK = pkRows.map(function (row) { return mapRowToRecord('PK', row); });
           logLines.push('พบชีต "' + pkSheetName + '" → ' + pendingImport.PK.length + ' แถว (PK)');
+          var pkBlankStatus = pendingImport.PK.filter(function (r) { return !r.status; });
+          if (pkBlankStatus.length > 0) {
+            logLines.push('⚠ พบ ' + pkBlankStatus.length + ' แถว (PK) ที่ไม่ได้ติ๊กสถานะใดเลย (ผ่าน/Quarantine/Rejected ว่างหมด) — เลขที่รับเข้า: ' +
+              pkBlankStatus.slice(0, 10).map(function (r) { return r.receiveNo || '(ไม่มีเลขที่)'; }).join(', ') +
+              (pkBlankStatus.length > 10 ? ' และอื่นๆ' : '') + ' — แถวเหล่านี้จะถูกนำเข้าแต่จะไม่ขึ้นในกราฟ/ผ่าน-Rejected จนกว่าจะแก้ไขสถานะ');
+          }
         } else {
           logLines.push('ไม่พบชีตที่ตรงกับข้อมูล PK ในไฟล์นี้');
         }
@@ -888,6 +910,12 @@
           var rmRows = XLSX.utils.sheet_to_json(workbook.Sheets[rmSheetName], { defval: '', range: rmHeaderIdx });
           pendingImport.RM = rmRows.map(function (row) { return mapRowToRecord('RM', row); });
           logLines.push('พบชีต "' + rmSheetName + '" → ' + pendingImport.RM.length + ' แถว (RM)');
+          var rmBlankStatus = pendingImport.RM.filter(function (r) { return !r.status; });
+          if (rmBlankStatus.length > 0) {
+            logLines.push('⚠ พบ ' + rmBlankStatus.length + ' แถว (RM) ที่ไม่ได้ติ๊กสถานะใดเลย (Approved/Quarantine/Rejected ว่างหมด) — เลขที่รับเข้า: ' +
+              rmBlankStatus.slice(0, 10).map(function (r) { return r.receiveNo || '(ไม่มีเลขที่)'; }).join(', ') +
+              (rmBlankStatus.length > 10 ? ' และอื่นๆ' : '') + ' — แถวเหล่านี้จะถูกนำเข้าแต่จะไม่ขึ้นในกราฟ/Approved-Rejected จนกว่าจะแก้ไขสถานะ');
+          }
         } else {
           logLines.push('ไม่พบชีตที่ตรงกับข้อมูล RM ในไฟล์นี้');
         }
