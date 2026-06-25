@@ -51,6 +51,8 @@
 
   var STATUS_COLOR_HEX = { pass: '#1B998B', warn: '#E8A33D', danger: '#D7263D', retain: '#5E60CE', neutral: '#5C6784' };
 
+  var THAI_MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+
   var STORAGE_KEYS = { PK: 'qc_pk_records', RM: 'qc_rm_records' };
 
   function loadRecords(type) {
@@ -160,16 +162,19 @@
     modal.show();
   }
 
-  var PAGES = ['dashboard', 'entry', 'table', 'io'];
+  var PAGES = ['dashboard', 'entry', 'table', 'daily', 'io'];
   var TITLES = {
     dashboard: 'ภาพรวม (Dashboard)',
     entry: 'บันทึกข้อมูล',
     table: 'ตารางข้อมูล / ค้นหา',
+    daily: 'สรุปรายวัน (Daily Summary)',
     io: 'นำเข้า / ส่งออก Excel'
   };
+  var activePage = 'dashboard';
 
   function gotoPage(page) {
     if (PAGES.indexOf(page) === -1) page = 'dashboard';
+    activePage = page;
     PAGES.forEach(function (p) {
       document.getElementById('page-' + p).classList.toggle('d-none', p !== page);
     });
@@ -181,6 +186,7 @@
 
     if (page === 'dashboard') renderDashboard();
     if (page === 'table') { renderTableHead(); populateStatusFilterOptions(); renderTableBody(); }
+    if (page === 'daily') renderDailySummary();
 
     var sidebarEl = document.getElementById('sidebar');
     var oc = bootstrap.Offcanvas.getInstance(sidebarEl);
@@ -274,6 +280,113 @@
     renderStatusChart('rmChart', 'rmChartEmpty', 'RM', rm);
     renderRecentList('pkRecentList', 'PK', pk);
     renderRecentList('rmRecentList', 'RM', rm);
+  }
+
+  /* ---------------- หน้าสรุปการรับเข้ารายวัน (Daily Summary) ---------------- */
+  var dailyState = { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
+
+  function getDaysInMonth(year, month) {
+    return new Date(year, month, 0).getDate();
+  }
+
+  function parseDateParts(iso) {
+    var m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return null;
+    return { y: Number(m[1]), m: Number(m[2]), d: Number(m[3]) };
+  }
+
+  function computeDailyCounts(type, year, month) {
+    var records = loadRecords(type);
+    var passKey = type === 'PK' ? 'ผ่าน' : 'Approved';
+    var daysInMonth = getDaysInMonth(year, month);
+    var rows = [];
+    for (var d = 1; d <= daysInMonth; d++) rows.push({ day: d, total: 0, pass: 0, rejected: 0 });
+
+    records.forEach(function (r) {
+      var parts = parseDateParts(r.receiveDate);
+      if (!parts || parts.y !== year || parts.m !== month) return;
+      var row = rows[parts.d - 1];
+      if (!row) return;
+      row.total++;
+      if (r.status === passKey) row.pass++;
+      if (r.status === 'Rejected') row.rejected++;
+    });
+    return rows;
+  }
+
+  function initDailySummaryControls() {
+    var monthSel = document.getElementById('dailyMonthSelect');
+    var yearSel = document.getElementById('dailyYearSelect');
+    if (!monthSel || !yearSel) return;
+
+    monthSel.innerHTML = THAI_MONTHS.map(function (name, idx) {
+      return '<option value="' + (idx + 1) + '">' + escapeHtml(name) + '</option>';
+    }).join('');
+
+    var currentYear = new Date().getFullYear();
+    var years = [];
+    for (var y = currentYear - 3; y <= currentYear + 1; y++) years.push(y);
+    yearSel.innerHTML = years.map(function (y) {
+      return '<option value="' + y + '">พ.ศ. ' + (y + 543) + '</option>';
+    }).join('');
+
+    monthSel.value = String(dailyState.month);
+    yearSel.value = String(dailyState.year);
+
+    monthSel.addEventListener('change', function () {
+      dailyState.month = Number(this.value);
+      renderDailySummary();
+    });
+    yearSel.addEventListener('change', function () {
+      dailyState.year = Number(this.value);
+      renderDailySummary();
+    });
+  }
+
+  function renderDailySummary() {
+    var year = dailyState.year, month = dailyState.month;
+    var pkRows = computeDailyCounts('PK', year, month);
+    var rmRows = computeDailyCounts('RM', year, month);
+    var daysInMonth = pkRows.length;
+
+    var totals = { pkIn: 0, pkPass: 0, pkRej: 0, rmIn: 0, rmPass: 0, rmRej: 0 };
+    var bodyHtml = '';
+
+    for (var i = 0; i < daysInMonth; i++) {
+      var day = i + 1;
+      var pk = pkRows[i], rm = rmRows[i];
+      var dow = new Date(year, month - 1, day).getDay();
+      var isWeekend = (dow === 0 || dow === 6);
+      var dateLabel = String(day).padStart(2, '0') + '/' + String(month).padStart(2, '0') + '/' + year;
+
+      totals.pkIn += pk.total; totals.pkPass += pk.pass; totals.pkRej += pk.rejected;
+      totals.rmIn += rm.total; totals.rmPass += rm.pass; totals.rmRej += rm.rejected;
+
+      bodyHtml += '<tr' + (isWeekend ? ' class="weekend-row"' : '') + '>' +
+        '<td class="mono">' + day + '</td>' +
+        '<td class="mono">' + dateLabel + '</td>' +
+        '<td class="mono">' + pk.total + '</td>' +
+        '<td class="mono">' + pk.pass + '</td>' +
+        '<td class="mono">' + pk.rejected + '</td>' +
+        '<td class="mono">' + rm.total + '</td>' +
+        '<td class="mono">' + rm.pass + '</td>' +
+        '<td class="mono">' + rm.rejected + '</td>' +
+        '</tr>';
+    }
+
+    var bodyEl = document.getElementById('dailySummaryBody');
+    if (bodyEl) bodyEl.innerHTML = bodyHtml;
+
+    var setText = function (id, val) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = val;
+    };
+    setText('dailyTotalPkIn', totals.pkIn);
+    setText('dailyTotalPkPass', totals.pkPass);
+    setText('dailyTotalPkRej', totals.pkRej);
+    setText('dailyTotalRmIn', totals.rmIn);
+    setText('dailyTotalRmPass', totals.rmPass);
+    setText('dailyTotalRmRej', totals.rmRej);
   }
 
   function handleEntrySubmit(e, type) {
@@ -684,6 +797,7 @@
   function refreshAll() {
     renderDashboard();
     renderTableBody();
+    if (activePage === 'daily') renderDailySummary();
   }
 
   function tickClock() {
@@ -809,6 +923,7 @@
 
     renderTableHead();
     populateStatusFilterOptions();
+    initDailySummaryControls();
     var initialPage = (location.hash || '').replace('#', '') || 'dashboard';
     gotoPage(initialPage);
 
