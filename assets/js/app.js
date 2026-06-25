@@ -162,12 +162,13 @@
     modal.show();
   }
 
-  var PAGES = ['dashboard', 'entry', 'table', 'daily', 'io'];
+  var PAGES = ['dashboard', 'entry', 'table', 'daily', 'analysis', 'io'];
   var TITLES = {
     dashboard: 'ภาพรวม (Dashboard)',
     entry: 'บันทึกข้อมูล',
     table: 'ตารางข้อมูล / ค้นหา',
     daily: 'สรุปรายวัน (Daily Summary)',
+    analysis: 'วิเคราะห์คุณภาพ (Quality Analysis)',
     io: 'นำเข้า / ส่งออก Excel'
   };
   var activePage = 'dashboard';
@@ -187,6 +188,7 @@
     if (page === 'dashboard') renderDashboard();
     if (page === 'table') { renderTableHead(); populateStatusFilterOptions(); renderTableBody(); }
     if (page === 'daily') renderDailySummary();
+    if (page === 'analysis') renderAnalysis();
 
     var sidebarEl = document.getElementById('sidebar');
     var oc = bootstrap.Offcanvas.getInstance(sidebarEl);
@@ -387,6 +389,190 @@
     setText('dailyTotalRmIn', totals.rmIn);
     setText('dailyTotalRmPass', totals.rmPass);
     setText('dailyTotalRmRej', totals.rmRej);
+  }
+
+  /* ---------------- หน้าวิเคราะห์คุณภาพ: สรุป Defect / ประเมิน Supplier ---------------- */
+  var analysisState = { tab: 'defect', type: 'PK', supplierSort: { field: 'passRate', dir: 'asc' } };
+
+  function getPassKey(type) { return type === 'PK' ? 'ผ่าน' : 'Approved'; }
+
+  // ดึงข้อความ Defect: PK ใช้ "ประเภท Defect" ก่อน ถ้าไม่มีใช้ "หมายเหตุ"; RM ใช้ "หมายเหตุ" ก่อน ถ้าไม่มีใช้ "Remark"
+  function getDefectText(type, r) {
+    if (type === 'PK') {
+      var dt = (r.defectType || '').toString().trim();
+      if (dt) return dt;
+      return (r.remark || '').toString().trim();
+    }
+    var rm1 = (r.remark || '').toString().trim();
+    if (rm1) return rm1;
+    return (r.remark2 || '').toString().trim();
+  }
+
+  function computeDefectSummary(type) {
+    var records = loadRecords(type);
+    var passKey = getPassKey(type);
+    var problemRecords = records.filter(function (r) { return r.status && r.status !== passKey; });
+
+    var groups = {};
+    var totalTagged = 0;
+    problemRecords.forEach(function (r) {
+      var text = getDefectText(type, r);
+      if (!text) return;
+      totalTagged++;
+      if (!groups[text]) groups[text] = { text: text, count: 0, suppliers: {} };
+      groups[text].count++;
+      var sup = (r.supplier || '').toString().trim() || 'ไม่ระบุ';
+      groups[text].suppliers[sup] = true;
+    });
+
+    var list = Object.keys(groups).map(function (k) {
+      var g = groups[k];
+      return { text: g.text, count: g.count, supplierCount: Object.keys(g.suppliers).length };
+    });
+    list.sort(function (a, b) { return b.count - a.count; });
+
+    return { totalProblem: problemRecords.length, totalTagged: totalTagged, uniqueCount: list.length, top: list[0] || null, list: list };
+  }
+
+  var defectChartInstance = null;
+
+  function renderDefectPanel() {
+    var summary = computeDefectSummary(analysisState.type);
+
+    document.getElementById('defectTotalProblem').textContent = summary.totalProblem;
+    document.getElementById('defectUniqueCount').textContent = summary.uniqueCount;
+    document.getElementById('defectTopName').textContent = summary.top ? summary.top.text : '-';
+    document.getElementById('defectTopCount').textContent = (summary.top ? summary.top.count : 0) + ' ครั้ง';
+
+    var tbody = document.getElementById('defectTableBody');
+    var tableEl = document.getElementById('defectTable');
+    var tableEmptyEl = document.getElementById('defectTableEmpty');
+    if (summary.list.length === 0) {
+      tbody.innerHTML = '';
+      tableEl.classList.add('d-none');
+      tableEmptyEl.classList.remove('d-none');
+    } else {
+      tableEl.classList.remove('d-none');
+      tableEmptyEl.classList.add('d-none');
+      tbody.innerHTML = summary.list.map(function (g) {
+        var pct = summary.totalTagged ? ((g.count / summary.totalTagged) * 100).toFixed(1) : '0.0';
+        return '<tr><td>' + escapeHtml(g.text) + '</td><td class="mono">' + g.count + '</td><td class="mono">' + pct + '%</td><td class="mono">' + g.supplierCount + '</td></tr>';
+      }).join('');
+    }
+
+    var canvas = document.getElementById('defectChart');
+    var chartEmptyEl = document.getElementById('defectChartEmpty');
+    var top8 = summary.list.slice(0, 8);
+
+    if (top8.length === 0) {
+      canvas.classList.add('d-none');
+      chartEmptyEl.classList.remove('d-none');
+      if (defectChartInstance) { defectChartInstance.destroy(); defectChartInstance = null; }
+    } else {
+      canvas.classList.remove('d-none');
+      chartEmptyEl.classList.add('d-none');
+      if (defectChartInstance) defectChartInstance.destroy();
+      var inkColor = getComputedStyle(document.documentElement).getPropertyValue('--color-ink').trim() || '#1C2541';
+      defectChartInstance = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: top8.map(function (g) { return g.text.length > 22 ? g.text.slice(0, 22) + '…' : g.text; }),
+          datasets: [{ data: top8.map(function (g) { return g.count; }), backgroundColor: STATUS_COLOR_HEX.danger, borderRadius: 4 }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: inkColor, precision: 0 }, grid: { color: 'rgba(128,128,128,.12)' } },
+            y: { ticks: { color: inkColor, font: { family: 'Sarabun', size: 11 } }, grid: { display: false } }
+          }
+        }
+      });
+    }
+  }
+
+  function gradeFromRate(rate) {
+    if (rate >= 98) return { label: 'A', cls: 'status-pass' };
+    if (rate >= 95) return { label: 'B', cls: 'status-pass' };
+    if (rate >= 90) return { label: 'C', cls: 'status-warn' };
+    return { label: 'D', cls: 'status-danger' };
+  }
+
+  function computeSupplierEvaluation(type) {
+    var records = loadRecords(type);
+    var passKey = getPassKey(type);
+    var groups = {};
+    records.forEach(function (r) {
+      var sup = (r.supplier || '').toString().trim() || 'ไม่ระบุ Supplier';
+      if (!groups[sup]) groups[sup] = { supplier: sup, total: 0, pass: 0, quarantine: 0, rejected: 0 };
+      var g = groups[sup];
+      g.total++;
+      if (r.status === passKey) g.pass++;
+      else if (r.status === 'Quarantine') g.quarantine++;
+      else if (r.status === 'Rejected') g.rejected++;
+    });
+    return Object.keys(groups).map(function (k) {
+      var g = groups[k];
+      g.passRate = g.total ? (g.pass / g.total) * 100 : 0;
+      g.grade = gradeFromRate(g.passRate).label;
+      return g;
+    });
+  }
+
+  function sortSupplierList(list) {
+    var field = analysisState.supplierSort.field;
+    var dir = analysisState.supplierSort.dir === 'asc' ? 1 : -1;
+    list.sort(function (a, b) {
+      var av = a[field], bv = b[field];
+      if (typeof av === 'string') { av = av.toLowerCase(); bv = bv.toLowerCase(); }
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+    return list;
+  }
+
+  function renderSupplierPanel() {
+    var list = sortSupplierList(computeSupplierEvaluation(analysisState.type));
+
+    var tbody = document.getElementById('supplierTableBody');
+    var tableEl = document.getElementById('supplierTable');
+    var emptyEl = document.getElementById('supplierTableEmpty');
+
+    if (list.length === 0) {
+      tbody.innerHTML = '';
+      tableEl.classList.add('d-none');
+      emptyEl.classList.remove('d-none');
+    } else {
+      tableEl.classList.remove('d-none');
+      emptyEl.classList.add('d-none');
+      tbody.innerHTML = list.map(function (g) {
+        var grade = gradeFromRate(g.passRate);
+        return '<tr>' +
+          '<td>' + escapeHtml(g.supplier) + '</td>' +
+          '<td class="mono">' + g.total + '</td>' +
+          '<td class="mono">' + g.pass + '</td>' +
+          '<td class="mono">' + g.quarantine + '</td>' +
+          '<td class="mono">' + g.rejected + '</td>' +
+          '<td class="mono">' + g.passRate.toFixed(1) + '%</td>' +
+          '<td><span class="status-badge grade-badge ' + grade.cls + '">' + grade.label + '</span></td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    document.querySelectorAll('#supplierTable th.sortable').forEach(function (th) {
+      th.classList.remove('sort-asc', 'sort-desc');
+      if (th.dataset.sort === analysisState.supplierSort.field) {
+        th.classList.add(analysisState.supplierSort.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+      }
+    });
+  }
+
+  function renderAnalysis() {
+    if (analysisState.tab === 'defect') renderDefectPanel();
+    else renderSupplierPanel();
   }
 
   function handleEntrySubmit(e, type) {
@@ -798,6 +984,7 @@
     renderDashboard();
     renderTableBody();
     if (activePage === 'daily') renderDailySummary();
+    if (activePage === 'analysis') renderAnalysis();
   }
 
   function tickClock() {
@@ -910,6 +1097,35 @@
       var delBtn = e.target.closest('.btn-delete');
       if (editBtn) openEditModal(tableState.currentTab, editBtn.dataset.id);
       if (delBtn) deleteRecord(tableState.currentTab, delBtn.dataset.id);
+    });
+
+    document.querySelectorAll('#analysisTab .nav-link').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('#analysisTab .nav-link').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        analysisState.tab = btn.dataset.analysisTab;
+        document.getElementById('analysisPanelDefect').classList.toggle('d-none', analysisState.tab !== 'defect');
+        document.getElementById('analysisPanelSupplier').classList.toggle('d-none', analysisState.tab !== 'supplier');
+        renderAnalysis();
+      });
+    });
+    document.getElementById('analysisTypePK').addEventListener('change', function () {
+      if (this.checked) { analysisState.type = 'PK'; renderAnalysis(); }
+    });
+    document.getElementById('analysisTypeRM').addEventListener('change', function () {
+      if (this.checked) { analysisState.type = 'RM'; renderAnalysis(); }
+    });
+    document.querySelectorAll('#supplierTable th.sortable').forEach(function (th) {
+      th.addEventListener('click', function () {
+        var field = th.dataset.sort;
+        if (analysisState.supplierSort.field === field) {
+          analysisState.supplierSort.dir = (analysisState.supplierSort.dir === 'asc') ? 'desc' : 'asc';
+        } else {
+          analysisState.supplierSort.field = field;
+          analysisState.supplierSort.dir = (field === 'passRate') ? 'asc' : 'desc';
+        }
+        renderSupplierPanel();
+      });
     });
 
     document.getElementById('importFile').addEventListener('change', function () {
