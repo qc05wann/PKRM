@@ -305,3 +305,34 @@ body{
 }
 .accent-swatch:hover{ transform:scale(1.08); }
 .accent-swatch.active{ outline-color:var(--swatch); }
+
+/* ============== Daily summary page ============== */
+.daily-summary-card{ border:1px solid var(--color-border); border-radius:var(--radius); box-shadow:var(--shadow-sm); }
+.daily-summary-title{ font-size:1rem; font-weight:700; color:var(--color-ink); }
+.daily-summary-toolbar select{ min-width:115px; }
+
+.daily-table-wrap{
+  background:var(--color-surface);
+  border:1px solid var(--color-border);
+  border-radius:var(--radius);
+  overflow-x:auto;
+}
+.daily-summary-table{ font-size:.84rem; text-align:center; margin-bottom:0; }
+.daily-summary-table th,
+.daily-summary-table td{
+  border:1px solid var(--color-border);
+  vertical-align:middle;
+  white-space:nowrap;
+  padding:.45rem .65rem;
+}
+.daily-summary-table thead th{
+  background:var(--color-bg-subtle); color:var(--color-ink-soft);
+  font-size:.72rem; text-transform:uppercase; letter-spacing:.02em; font-weight:700;
+}
+.daily-summary-table thead th.grp-pk{ background:var(--color-brand-soft); color:var(--color-brand); }
+.daily-summary-table thead th.grp-rm{ background:var(--color-retain-soft); color:var(--color-retain); }
+.daily-summary-table .col-day{ width:56px; }
+.daily-summary-table .col-date{ width:108px; }
+.daily-summary-table tbody tr.weekend-row{ background:var(--color-primary); color:#fff; }
+.daily-summary-table tbody tr.weekend-row td{ border-color:rgba(255,255,255,.15); }
+.daily-total-row{ font-weight:700; background:var(--color-bg-subtle); }
