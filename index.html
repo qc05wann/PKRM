@@ -53,6 +53,9 @@
       <a href="#table" class="nav-link sidebar-link" data-page="table">
         <i class="bi bi-table"></i><span>ตารางข้อมูล / ค้นหา</span>
       </a>
+      <a href="#daily" class="nav-link sidebar-link" data-page="daily">
+        <i class="bi bi-calendar3-week"></i><span>สรุปรายวัน</span>
+      </a>
       <a href="#io" class="nav-link sidebar-link" data-page="io">
         <i class="bi bi-arrow-down-up"></i><span>นำเข้า / ส่งออก Excel</span>
       </a>
@@ -470,6 +473,57 @@
         <button class="btn btn-outline-secondary btn-sm" id="prevPageBtn"><i class="bi bi-chevron-left"></i> ก่อนหน้า</button>
         <span class="text-muted small" id="pageInfo">หน้า 1 / 1</span>
         <button class="btn btn-outline-secondary btn-sm" id="nextPageBtn">ถัดไป <i class="bi bi-chevron-right"></i></button>
+      </div>
+    </section>
+
+    <!-- ====================== PAGE: DAILY SUMMARY ====================== -->
+    <section id="page-daily" class="page-section d-none">
+      <div class="card form-card daily-summary-card">
+        <div class="card-body">
+
+          <div class="daily-summary-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
+            <h2 class="daily-summary-title mb-0">สรุปการรับเข้ารายวัน — บรรจุภัณฑ์ (PK) &amp; วัตถุดิบ (RM)</h2>
+            <div class="ms-md-auto d-flex align-items-center gap-2 flex-wrap">
+              <label class="form-label mb-0 small">เลือกเดือน</label>
+              <select class="form-select form-select-sm w-auto" id="dailyMonthSelect"></select>
+              <select class="form-select form-select-sm w-auto" id="dailyYearSelect"></select>
+            </div>
+          </div>
+
+          <div class="table-responsive daily-table-wrap">
+            <table class="table daily-summary-table mb-0" id="dailySummaryTable">
+              <thead>
+                <tr>
+                  <th rowspan="2" class="col-day">วัน</th>
+                  <th rowspan="2" class="col-date">วันที่</th>
+                  <th colspan="3" class="grp-head grp-pk">บรรจุภัณฑ์ (PK)</th>
+                  <th colspan="3" class="grp-head grp-rm">วัตถุดิบ (RM)</th>
+                </tr>
+                <tr>
+                  <th class="grp-pk">รับเข้า(รายการ)</th>
+                  <th class="grp-pk">ผ่าน(รายการ)</th>
+                  <th class="grp-pk">Rejected(รายการ)</th>
+                  <th class="grp-rm">รับเข้า(รายการ)</th>
+                  <th class="grp-rm">ผ่าน(รายการ)</th>
+                  <th class="grp-rm">Rejected(รายการ)</th>
+                </tr>
+              </thead>
+              <tbody id="dailySummaryBody"></tbody>
+              <tfoot>
+                <tr class="daily-total-row">
+                  <td colspan="2" class="text-center">รวม</td>
+                  <td class="mono" id="dailyTotalPkIn">0</td>
+                  <td class="mono" id="dailyTotalPkPass">0</td>
+                  <td class="mono" id="dailyTotalPkRej">0</td>
+                  <td class="mono" id="dailyTotalRmIn">0</td>
+                  <td class="mono" id="dailyTotalRmPass">0</td>
+                  <td class="mono" id="dailyTotalRmRej">0</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+        </div>
       </div>
     </section>
 
