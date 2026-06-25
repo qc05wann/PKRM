@@ -56,6 +56,9 @@
       <a href="#daily" class="nav-link sidebar-link" data-page="daily">
         <i class="bi bi-calendar3-week"></i><span>สรุปรายวัน</span>
       </a>
+      <a href="#analysis" class="nav-link sidebar-link" data-page="analysis">
+        <i class="bi bi-graph-up-arrow"></i><span>วิเคราะห์คุณภาพ</span>
+      </a>
       <a href="#io" class="nav-link sidebar-link" data-page="io">
         <i class="bi bi-arrow-down-up"></i><span>นำเข้า / ส่งออก Excel</span>
       </a>
@@ -525,6 +528,116 @@
 
         </div>
       </div>
+    </section>
+
+    <!-- ====================== PAGE: QUALITY ANALYSIS ====================== -->
+    <section id="page-analysis" class="page-section d-none">
+
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <ul class="nav nav-tabs table-tabs mb-0" id="analysisTab" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" data-analysis-tab="defect" type="button"><i class="bi bi-exclamation-octagon"></i> สรุป Defect</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-analysis-tab="supplier" type="button"><i class="bi bi-building-gear"></i> ประเมิน Supplier</button>
+          </li>
+        </ul>
+
+        <div class="btn-group type-switch" role="group">
+          <input type="radio" class="btn-check" name="analysisType" id="analysisTypePK" value="PK" checked>
+          <label class="btn btn-outline-brand btn-sm" for="analysisTypePK"><i class="bi bi-box-seam"></i> PK</label>
+          <input type="radio" class="btn-check" name="analysisType" id="analysisTypeRM" value="RM">
+          <label class="btn btn-outline-brand btn-sm" for="analysisTypeRM"><i class="bi bi-droplet-half"></i> RM</label>
+        </div>
+      </div>
+
+      <!-- ---------- DEFECT SUMMARY PANEL ---------- -->
+      <div id="analysisPanelDefect">
+        <div class="row g-3">
+          <div class="col-6 col-xl-3">
+            <div class="kpi-card">
+              <div class="kpi-bar bar-danger"></div>
+              <div class="kpi-label">รายการที่พบปัญหา</div>
+              <div class="kpi-value mono" id="defectTotalProblem">0</div>
+              <div class="kpi-unit">รายการ (Quarantine+Rejected)</div>
+            </div>
+          </div>
+          <div class="col-6 col-xl-3">
+            <div class="kpi-card">
+              <div class="kpi-bar bar-neutral"></div>
+              <div class="kpi-label">ประเภท Defect ที่พบ</div>
+              <div class="kpi-value mono" id="defectUniqueCount">0</div>
+              <div class="kpi-unit">ประเภท/ข้อความ</div>
+            </div>
+          </div>
+          <div class="col-12 col-xl-6">
+            <div class="kpi-card">
+              <div class="kpi-bar bar-brand"></div>
+              <div class="kpi-label">Defect ที่พบบ่อยที่สุด</div>
+              <div class="kpi-value kpi-value-sm" id="defectTopName">-</div>
+              <div class="kpi-unit" id="defectTopCount">0 ครั้ง</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mt-1">
+          <div class="col-12 col-lg-5">
+            <div class="chart-card h-100">
+              <div class="chart-card-title">Top Defect (เรียงตามจำนวน)</div>
+              <div class="chart-wrap" style="height:280px;"><canvas id="defectChart"></canvas></div>
+              <div id="defectChartEmpty" class="chart-empty d-none">ไม่มีข้อมูล Defect ให้แสดง</div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-7">
+            <div class="chart-card h-100">
+              <div class="chart-card-title">รายละเอียด Defect ทั้งหมด</div>
+              <div class="table-responsive">
+                <table class="table align-middle data-table mb-0" id="defectTable">
+                  <thead><tr><th>Defect / หมายเหตุ</th><th>จำนวน(ครั้ง)</th><th>สัดส่วน</th><th>Supplier ที่เกี่ยวข้อง</th></tr></thead>
+                  <tbody id="defectTableBody"></tbody>
+                </table>
+                <div id="defectTableEmpty" class="empty-state d-none py-4">
+                  <i class="bi bi-emoji-smile"></i>
+                  <h2>ยังไม่พบ Defect ในข้อมูล</h2>
+                  <p>ไม่มีรายการที่ Quarantine/Rejected ซึ่งระบุประเภท Defect หรือหมายเหตุไว้</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="text-muted small mt-2">
+          <i class="bi bi-info-circle"></i> นับจากรายการที่สถานะ Quarantine หรือ Rejected เท่านั้น โดยใช้ข้อความจากช่อง "ประเภท Defect" ถ้ามี (เฉพาะ PK) หรือ "หมายเหตุ" เป็นตัวจัดกลุ่ม
+        </p>
+      </div>
+
+      <!-- ---------- SUPPLIER EVALUATION PANEL ---------- -->
+      <div id="analysisPanelSupplier" class="d-none">
+        <div class="table-responsive data-table-wrap">
+          <table class="table align-middle data-table mb-0" id="supplierTable">
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="supplier">Supplier</th>
+                <th class="sortable" data-sort="total">รับเข้าทั้งหมด</th>
+                <th class="sortable" data-sort="pass">ผ่าน</th>
+                <th class="sortable" data-sort="quarantine">Quarantine</th>
+                <th class="sortable" data-sort="rejected">Rejected</th>
+                <th class="sortable" data-sort="passRate">Pass Rate</th>
+                <th class="sortable" data-sort="grade">เกรด</th>
+              </tr>
+            </thead>
+            <tbody id="supplierTableBody"></tbody>
+          </table>
+          <div id="supplierTableEmpty" class="empty-state d-none py-5">
+            <i class="bi bi-building"></i>
+            <h2>ยังไม่มีข้อมูล Supplier</h2>
+            <p>บันทึกหรือนำเข้าข้อมูล PK/RM ก่อนเพื่อประเมิน Supplier</p>
+          </div>
+        </div>
+        <p class="text-muted small mt-2">
+          <i class="bi bi-info-circle"></i> เกรด: A (Pass Rate ≥ 98%) · B (≥ 95%) · C (≥ 90%) · D (&lt; 90%) — คลิกหัวคอลัมน์เพื่อเรียงลำดับ
+        </p>
+      </div>
+
     </section>
 
     <!-- ====================== PAGE: IMPORT / EXPORT ====================== -->
