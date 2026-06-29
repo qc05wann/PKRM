@@ -781,16 +781,27 @@
     return String(h).trim().toLowerCase().replace(/[\s_().]/g, '');
   }
 
+  // แปลง Date object เป็น YYYY-MM-DD โดยอ่านค่าแบบ UTC เท่านั้น
+  // (เดิมใช้ getTimezoneOffset() แล้วบวกชดเชยซ้ำ ทำให้วันที่เลื่อนถอยหลัง 1 วัน
+  //  สำหรับทุกเครื่อง/เบราว์เซอร์ที่ตั้งโซนเวลาเป็น UTC+ เช่นประเทศไทย)
   function dateToInputValue(d) {
-    var tz = d.getTimezoneOffset();
-    var local = new Date(d.getTime() - tz * 60000);
-    return local.toISOString().slice(0, 10);
+    return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
+  }
+
+  // แปลงเลข serial date ของ Excel (เช่น 46195) เป็น YYYY-MM-DD
+  // คำนวณแบบ UTC ตรง ๆ ไม่พึ่งพาโซนเวลาของเบราว์เซอร์ผู้ใช้ เพื่อไม่ให้วันที่คลาดเคลื่อน
+  function excelSerialToISO(serial) {
+    var utcMs = Date.UTC(1899, 11, 30) + Math.round(serial * 86400000);
+    var d = new Date(utcMs);
+    return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
   }
 
   function normalizeDateValue(val) {
-    if (!val) return '';
+    if (val === '' || val === null || val === undefined) return '';
     if (val instanceof Date && !isNaN(val)) return dateToInputValue(val);
+    if (typeof val === 'number' && isFinite(val)) return excelSerialToISO(val);
     var s = String(val).trim();
+    if (!s) return '';
     if (/^(null|undefined|nan|n\/a|none|-)$/i.test(s)) return '';
     if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
     var m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
@@ -879,7 +890,7 @@
     reader.onload = function (e) {
       try {
         var data = new Uint8Array(e.target.result);
-        var workbook = XLSX.read(data, { type: 'array', cellDates: true });
+        var workbook = XLSX.read(data, { type: 'array' });
 
         var pkSheetName = findSheetName(workbook, ['pk', 'บรรจุภัณฑ์']);
         var rmSheetName = findSheetName(workbook, ['rm', 'วัตถุดิบ']);
