@@ -448,16 +448,47 @@
     return guessed.join('|');
   }
 
+  // คำที่ "ไม่ใช่ Defect จริง" — เป็นบันทึกงานทั่วไป/หมายเหตุธุรการที่บังเอิญถูกพิมพ์ไว้ในช่อง "หมายเหตุ" เดียวกัน
+  // เช่น การเบิกตัวอย่างไปตรวจ, การส่งเครื่องมือไปสอบเทียบ ฯลฯ — ไม่ถือเป็นข้อบกพร่องของสินค้า
+  // ถ้าข้อความหมายเหตุเข้าเงื่อนไขคำเหล่านี้ (และไม่มีคำ Defect จริงปนอยู่) จะไม่ถูกนับในรายงาน Defect
+  // ถ้าเจอคำใหม่ที่ควรเพิ่ม สามารถเพิ่มต่อท้าย array นี้ได้เลย
+  var NON_DEFECT_KEYWORDS = [
+    'qc เบิก',
+    'เบิก',
+    'เก็บ std',
+    'เก็บตัวอย่าง',
+    'สอบเทียบ',
+    'ส่งสอบเทียบ',
+    'เครื่องวัดความหนา',
+    'เครื่องมือเอาไปสอบเทียบ'
+  ];
+
+  // ตรวจว่าข้อความหมายเหตุเป็นเพียง "บันทึกงานทั่วไป" (ไม่ใช่ Defect) หรือไม่
+  // เงื่อนไข: ต้องไม่มี keyword ของ Defect จริงปนอยู่ในข้อความเดียวกัน (กันกรณีพิมพ์รวมกันมาในแถวเดียว)
+  function isNonDefectNote(text) {
+    var t = String(text || '').trim().toLowerCase();
+    if (!t) return false;
+    var hasNonDefectTerm = NON_DEFECT_KEYWORDS.some(function (kw) { return t.indexOf(kw) !== -1; });
+    if (!hasNonDefectTerm) return false;
+    var hasRealDefectTerm = Object.keys(DEFECT_KEYWORDS).some(function (category) {
+      return DEFECT_KEYWORDS[category].some(function (kw) { return t.indexOf(kw.toLowerCase()) !== -1; });
+    });
+    return !hasRealDefectTerm;
+  }
+
   // ดึงข้อความ Defect: PK ใช้ "ประเภท Defect" (หรือเดาจากหมายเหตุถ้ายังไม่ระบุ); RM ใช้ "หมายเหตุ" ก่อน ถ้าไม่มีใช้ "Remark"
   function getDefectText(type, r) {
     if (type === 'PK') {
       var dt = getEffectiveDefectType(r);
       if (dt) return dt;
-      return (r.remark || '').toString().trim();
+      var pkRemark = (r.remark || '').toString().trim();
+      if (isNonDefectNote(pkRemark)) return '';
+      return pkRemark;
     }
     var rm1 = (r.remark || '').toString().trim();
-    if (rm1) return rm1;
-    return (r.remark2 || '').toString().trim();
+    if (rm1) return isNonDefectNote(rm1) ? '' : rm1;
+    var rm2 = (r.remark2 || '').toString().trim();
+    return isNonDefectNote(rm2) ? '' : rm2;
   }
 
   function computeDefectSummary(type) {
