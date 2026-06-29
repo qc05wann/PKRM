@@ -66,9 +66,15 @@
     }
   }
 
+  // ใช้ติดตามว่า checkbox list ของ Supplier filter (ในหน้าวิเคราะห์คุณภาพ) ต้อง rebuild ใหม่หรือไม่
+  // ตั้งเป็น true ทุกครั้งที่ข้อมูล PK/RM ถูกแก้ไข (เพิ่ม/ลบ/แก้ไข/นำเข้า/ล้างทั้งหมด) เพื่อให้รายชื่อ Supplier ในตัวกรองอัปเดตตาม
+  var supplierFilterListDirty = true;
+  function markSupplierFilterListDirty() { supplierFilterListDirty = true; }
+
   function saveRecords(type, arr) {
     try {
       localStorage.setItem(STORAGE_KEYS[type], JSON.stringify(arr));
+      markSupplierFilterListDirty();
       return true;
     } catch (err) {
       console.error('บันทึกข้อมูลไม่สำเร็จ:', err);
@@ -392,7 +398,7 @@
   }
 
   /* ---------------- หน้าวิเคราะห์คุณภาพ: สรุป Defect / ประเมิน Supplier ---------------- */
-  var analysisState = { tab: 'defect', type: 'PK', supplierSort: { field: 'passRate', dir: 'asc' }, supplierFilter: '' };
+  var analysisState = { tab: 'defect', type: 'PK', supplierSort: { field: 'passRate', dir: 'asc' }, supplierFilter: [] };
 
   function getPassKey(type) { return type === 'PK' ? 'ผ่าน' : 'Approved'; }
 
@@ -492,10 +498,11 @@
   }
 
   // คำนวณสรุป Defect ของประเภท (PK/RM) ที่กำหนด
-  // supplierFilter: ถ้าระบุ (ไม่ใช่ค่าว่าง) จะนับเฉพาะรายการของ Supplier นั้นเท่านั้น
+  // supplierFilter: array ของชื่อ Supplier — ถ้าระบุ (array ไม่ว่าง) จะนับเฉพาะรายการของ Supplier เหล่านั้นเท่านั้น
   function computeDefectSummary(type, supplierFilter) {
     var records = loadRecords(type);
     var passKey = getPassKey(type);
+    var filterSet = (supplierFilter && supplierFilter.length) ? supplierFilter : null;
 
     var groups = {};
     var totalTagged = 0;
@@ -508,7 +515,7 @@
       if (!text) return;
 
       var sup = (r.supplier || '').toString().trim() || 'ไม่ระบุ';
-      if (supplierFilter && sup !== supplierFilter) return;
+      if (filterSet && filterSet.indexOf(sup) === -1) return;
 
       totalTagged++;
 
@@ -540,35 +547,106 @@
     return Object.keys(set).sort(function (a, b) { return a.localeCompare(b, 'th'); });
   }
 
+  // คำนวณข้อมูลเปรียบเทียบ Defect ระหว่าง Supplier ที่เลือกหลายราย (>= 2 ราย)
+  // ผลลัพธ์: รายชื่อประเภท Defect ทั้งหมดที่เจอ (รวมทุก supplier ที่เลือก) พร้อมจำนวนครั้งแยกตาม supplier แต่ละราย
+  function computeSupplierComparison(type, supplierList) {
+    var records = loadRecords(type);
+    var defectTypeSet = {}; // text -> true
+    var bySupplier = {};    // supplier -> { text -> count }
+
+    supplierList.forEach(function (sup) { bySupplier[sup] = {}; });
+
+    records.forEach(function (r) {
+      var text = getDefectText(type, r);
+      if (!text) return;
+      var sup = (r.supplier || '').toString().trim() || 'ไม่ระบุ';
+      if (supplierList.indexOf(sup) === -1) return;
+
+      defectTypeSet[text] = true;
+      bySupplier[sup][text] = (bySupplier[sup][text] || 0) + 1;
+    });
+
+    var defectTypes = Object.keys(defectTypeSet);
+    // เรียงตามจำนวนรวมทั้งหมด (มากไปน้อย)
+    defectTypes.sort(function (a, b) {
+      var totalA = supplierList.reduce(function (sum, s) { return sum + (bySupplier[s][a] || 0); }, 0);
+      var totalB = supplierList.reduce(function (sum, s) { return sum + (bySupplier[s][b] || 0); }, 0);
+      return totalB - totalA;
+    });
+
+    return { defectTypes: defectTypes, bySupplier: bySupplier };
+  }
+
 
   var defectChartInstance = null;
+  var supplierCompareChartInstance = null;
+
+  // สีประจำ Supplier (วนซ้ำตามลำดับ) — ใช้ทั้งใน chip และกราฟเปรียบเทียบ ให้สีตรงกันเสมอ
+  var SUPPLIER_COMPARE_COLORS = ['#E04F5F', '#3D7AE8', '#2FA86B', '#E8A020', '#8E5CD9', '#15A6A6', '#D9608A', '#6B8E23'];
+  function getSupplierColor(supplierList, sup) {
+    var idx = supplierList.indexOf(sup);
+    return SUPPLIER_COMPARE_COLORS[idx % SUPPLIER_COMPARE_COLORS.length];
+  }
 
   function populateDefectSupplierFilter() {
-    var sel = document.getElementById('defectSupplierFilter');
-    if (!sel) return;
+    var menu = document.getElementById('defectSupplierFilterMenu');
+    if (!menu) return;
     var suppliers = getSupplierListForType(analysisState.type);
-    var currentVal = analysisState.supplierFilter;
 
-    var options = ['<option value="">-- ทุก Supplier --</option>'];
-    suppliers.forEach(function (sup) {
-      options.push('<option value="' + escapeHtml(sup) + '">' + escapeHtml(sup) + '</option>');
-    });
-    sel.innerHTML = options.join('');
+    // ถ้า Supplier ที่เลือกไว้ไม่มีในประเภทนี้แล้ว (เช่น สลับ PK<->RM) ให้ตัดออกจากตัวกรอง
+    analysisState.supplierFilter = analysisState.supplierFilter.filter(function (s) { return suppliers.indexOf(s) !== -1; });
 
-    // ถ้า Supplier ที่เลือกไว้ไม่มีในประเภทนี้แล้ว (เช่น สลับ PK<->RM) ให้รีเซ็ตตัวกรอง
-    if (currentVal && suppliers.indexOf(currentVal) === -1) {
-      analysisState.supplierFilter = '';
-      currentVal = '';
+    // สร้าง checkbox list ใหม่เฉพาะตอนข้อมูลมีการเปลี่ยนแปลงจริง (เปลี่ยน PK<->RM, นำเข้า/แก้ไข/ลบข้อมูล)
+    // ไม่ rebuild ทุกครั้งที่ render เพราะจะทำให้ dropdown ของ Bootstrap ปิดตัวเองกลางอากาศตอนผู้ใช้กำลังติ๊ก checkbox อยู่
+    if (supplierFilterListDirty || menu.dataset.populatedType !== analysisState.type) {
+      menu.innerHTML = suppliers.map(function (sup) {
+        var safeId = 'supChk_' + sup.replace(/[^a-zA-Z0-9ก-๙]/g, '_');
+        var checked = analysisState.supplierFilter.indexOf(sup) !== -1 ? 'checked' : '';
+        return '<div class="form-check">' +
+          '<input class="form-check-input defect-supplier-checkbox" type="checkbox" value="' + escapeHtml(sup) + '" id="' + safeId + '" ' + checked + '>' +
+          '<label class="form-check-label" for="' + safeId + '">' + escapeHtml(sup) + '</label>' +
+          '</div>';
+      }).join('') || '<div class="text-muted small px-2 py-1">ไม่มี Supplier ในข้อมูล</div>';
+      menu.dataset.populatedType = analysisState.type;
+      supplierFilterListDirty = false;
     }
-    sel.value = currentVal;
 
+    updateDefectSupplierFilterUI();
+  }
+
+  // อัปเดตปุ่ม dropdown label, chips ที่เลือกไว้ และปุ่มล้างตัวกรอง — เรียกทุกครั้งที่ supplierFilter เปลี่ยน
+  function updateDefectSupplierFilterUI() {
+    var selected = analysisState.supplierFilter;
+    var btnLabel = document.getElementById('defectSupplierFilterBtnLabel');
     var clearBtn = document.getElementById('defectSupplierFilterClear');
-    if (clearBtn) clearBtn.classList.toggle('d-none', !currentVal);
+    var chipsWrap = document.getElementById('defectSupplierSelectedChips');
+
+    if (btnLabel) {
+      if (selected.length === 0) btnLabel.textContent = '-- ทุก Supplier --';
+      else if (selected.length === 1) btnLabel.textContent = selected[0];
+      else btnLabel.textContent = 'เลือกแล้ว ' + selected.length + ' Supplier';
+    }
+    if (clearBtn) clearBtn.classList.toggle('d-none', selected.length === 0);
+
+    if (chipsWrap) {
+      chipsWrap.innerHTML = selected.map(function (sup) {
+        var color = getSupplierColor(selected, sup);
+        return '<span class="badge rounded-pill defect-supplier-chip" data-supplier="' + escapeHtml(sup) +
+          '" style="background:' + color + '22; color:' + color + '; border:1px solid ' + color + '55; cursor:pointer;">' +
+          escapeHtml(sup) + ' <i class="bi bi-x"></i></span>';
+      }).join('');
+    }
+
+    // sync checkbox state ในเมนู (เผื่อมีการล้าง/ลบจาก chip)
+    document.querySelectorAll('.defect-supplier-checkbox').forEach(function (cb) {
+      cb.checked = selected.indexOf(cb.value) !== -1;
+    });
   }
 
   function renderDefectPanel() {
     populateDefectSupplierFilter();
-    var summary = computeDefectSummary(analysisState.type, analysisState.supplierFilter);
+    var activeFilter = analysisState.supplierFilter;
+    var summary = computeDefectSummary(analysisState.type, activeFilter);
 
     document.getElementById('defectTotalProblem').textContent = summary.totalTagged;
     document.getElementById('defectUniqueCount').textContent = summary.uniqueCount;
@@ -593,9 +671,9 @@
       tableEmptyEl.classList.remove('d-none');
       var emptyTitle = tableEmptyEl.querySelector('h2');
       var emptyDesc = tableEmptyEl.querySelector('p');
-      if (analysisState.supplierFilter) {
-        if (emptyTitle) emptyTitle.textContent = 'ไม่พบ Defect ของ Supplier นี้';
-        if (emptyDesc) emptyDesc.textContent = 'Supplier "' + analysisState.supplierFilter + '" ไม่มีรายการ Defect/หมายเหตุที่บันทึกไว้';
+      if (activeFilter.length) {
+        if (emptyTitle) emptyTitle.textContent = 'ไม่พบ Defect ของ Supplier ที่เลือก';
+        if (emptyDesc) emptyDesc.textContent = 'Supplier "' + activeFilter.join(', ') + '" ไม่มีรายการ Defect/หมายเหตุที่บันทึกไว้';
       } else {
         if (emptyTitle) emptyTitle.textContent = 'ยังไม่พบ Defect ในข้อมูล';
         if (emptyDesc) emptyDesc.textContent = 'ไม่มีรายการที่ระบุประเภท Defect หรือหมายเหตุไว้';
@@ -606,9 +684,9 @@
       tbody.innerHTML = summary.list.map(function (g) {
         var pct = summary.totalTagged ? ((g.count / summary.totalTagged) * 100).toFixed(1) : '0.0';
         var supplierCell;
-        if (analysisState.supplierFilter) {
+        if (activeFilter.length === 1) {
           // กรองแล้วเหลือ supplier เดียว — ไม่ต้องโชว์ตัวเลขนับซ้ำ แค่ยืนยันชื่อ
-          supplierCell = escapeHtml(analysisState.supplierFilter);
+          supplierCell = escapeHtml(activeFilter[0]);
         } else {
           var supNames = Object.keys(g.suppliers).sort(function (a, b) { return g.suppliers[b] - g.suppliers[a]; });
           var tooltip = supNames.map(function (s) { return s + ': ' + g.suppliers[s] + ' ครั้ง'; }).join(' · ');
@@ -622,34 +700,124 @@
     var chartEmptyEl = document.getElementById('defectChartEmpty');
     var top8 = summary.list.slice(0, 8);
 
-    if (top8.length === 0) {
-      canvas.classList.add('d-none');
-      chartEmptyEl.classList.remove('d-none');
-      if (defectChartInstance) { defectChartInstance.destroy(); defectChartInstance = null; }
+    try {
+      if (top8.length === 0) {
+        canvas.classList.add('d-none');
+        chartEmptyEl.classList.remove('d-none');
+        if (defectChartInstance) { defectChartInstance.destroy(); defectChartInstance = null; }
+      } else {
+        canvas.classList.remove('d-none');
+        chartEmptyEl.classList.add('d-none');
+        if (defectChartInstance) defectChartInstance.destroy();
+        var inkColor = getComputedStyle(document.documentElement).getPropertyValue('--color-ink').trim() || '#1C2541';
+        defectChartInstance = new Chart(canvas.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: top8.map(function (g) { return g.text.length > 22 ? g.text.slice(0, 22) + '…' : g.text; }),
+            datasets: [{ data: top8.map(function (g) { return g.count; }), backgroundColor: STATUS_COLOR_HEX.danger, borderRadius: 4 }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: inkColor, precision: 0 }, grid: { color: 'rgba(128,128,128,.12)' } },
+              y: { ticks: { color: inkColor, font: { family: 'Sarabun', size: 11 } }, grid: { display: false } }
+            }
+          }
+        });
+      }
+    } catch (chartErr) {
+      // ป้องกันไม่ให้ Chart.js ที่โหลดไม่สำเร็จ (เช่น เน็ตหลุดชั่วขณะ) ไปบล็อกส่วนตารางเปรียบเทียบ Supplier ที่ตามมาด้านล่าง
+      console.error('สร้างกราฟ Defect ไม่สำเร็จ:', chartErr);
+    }
+
+    renderSupplierCompareSection(activeFilter);
+  }
+
+  // ส่วนเปรียบเทียบ Defect ระหว่าง Supplier หลายราย — แสดงเฉพาะเมื่อเลือก Supplier >= 2 ราย
+  function renderSupplierCompareSection(activeFilter) {
+    var section = document.getElementById('supplierCompareSection');
+    if (!section) return;
+
+    if (!activeFilter || activeFilter.length < 2) {
+      section.classList.add('d-none');
+      try { if (supplierCompareChartInstance) { supplierCompareChartInstance.destroy(); supplierCompareChartInstance = null; } } catch (e) {}
+      return;
+    }
+    section.classList.remove('d-none');
+
+    var data = computeSupplierComparison(analysisState.type, activeFilter);
+    var inkColor = getComputedStyle(document.documentElement).getPropertyValue('--color-ink').trim() || '#1C2541';
+
+    // --- ตารางเปรียบเทียบ (ไม่พึ่งพา Chart.js — แสดงได้เสมอไม่ว่ากราฟจะวาดสำเร็จหรือไม่) ---
+    var theadRow = document.getElementById('supplierCompareTableHead');
+    var tbody = document.getElementById('supplierCompareTableBody');
+
+    theadRow.innerHTML = '<th>Defect / หมายเหตุ</th>' + activeFilter.map(function (sup) {
+      return '<th class="text-center">' + escapeHtml(sup) + '</th>';
+    }).join('') + '<th class="text-center">รวม</th>';
+
+    if (data.defectTypes.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="' + (activeFilter.length + 2) + '" class="text-center text-muted py-3">ไม่พบ Defect ของ Supplier ที่เลือก</td></tr>';
     } else {
-      canvas.classList.remove('d-none');
-      chartEmptyEl.classList.add('d-none');
-      if (defectChartInstance) defectChartInstance.destroy();
-      var inkColor = getComputedStyle(document.documentElement).getPropertyValue('--color-ink').trim() || '#1C2541';
-      defectChartInstance = new Chart(canvas.getContext('2d'), {
+      tbody.innerHTML = data.defectTypes.map(function (text) {
+        var rowTotal = 0;
+        var cells = activeFilter.map(function (sup) {
+          var c = data.bySupplier[sup][text] || 0;
+          rowTotal += c;
+          return '<td class="mono text-center">' + (c || '-') + '</td>';
+        }).join('');
+        return '<tr><td>' + escapeHtml(text) + '</td>' + cells + '<td class="mono text-center fw-semibold">' + rowTotal + '</td></tr>';
+      }).join('');
+    }
+
+    // --- กราฟเปรียบเทียบ (grouped bar: แกน X = ประเภท Defect, แต่ละกลุ่มแยกสีตาม Supplier) ---
+    try {
+      var canvas = document.getElementById('supplierCompareChart');
+      var top8Types = data.defectTypes.slice(0, 8);
+
+      if (supplierCompareChartInstance) supplierCompareChartInstance.destroy();
+      if (top8Types.length === 0) {
+        supplierCompareChartInstance = null;
+        return;
+      }
+
+      var datasets = activeFilter.map(function (sup) {
+        var color = getSupplierColor(activeFilter, sup);
+        return {
+          label: sup,
+          data: top8Types.map(function (text) { return data.bySupplier[sup][text] || 0; }),
+          backgroundColor: color,
+          borderRadius: 4
+        };
+      });
+
+      supplierCompareChartInstance = new Chart(canvas.getContext('2d'), {
         type: 'bar',
         data: {
-          labels: top8.map(function (g) { return g.text.length > 22 ? g.text.slice(0, 22) + '…' : g.text; }),
-          datasets: [{ data: top8.map(function (g) { return g.count; }), backgroundColor: STATUS_COLOR_HEX.danger, borderRadius: 4 }]
+          labels: top8Types.map(function (t) { return t.length > 18 ? t.slice(0, 18) + '…' : t; }),
+          datasets: datasets
         },
         options: {
-          indexAxis: 'y',
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          plugins: {
+            legend: { position: 'bottom', labels: { color: inkColor, font: { family: 'Sarabun', size: 11 } } }
+          },
           scales: {
-            x: { ticks: { color: inkColor, precision: 0 }, grid: { color: 'rgba(128,128,128,.12)' } },
-            y: { ticks: { color: inkColor, font: { family: 'Sarabun', size: 11 } }, grid: { display: false } }
+            x: { ticks: { color: inkColor, font: { family: 'Sarabun', size: 11 } }, grid: { display: false } },
+            y: { ticks: { color: inkColor, precision: 0 }, grid: { color: 'rgba(128,128,128,.12)' } }
           }
         }
       });
+    } catch (compareChartErr) {
+      // ตารางเปรียบเทียบด้านบนแสดงผลไปแล้วโดยไม่พึ่งกราฟ — ถ้ากราฟวาดไม่สำเร็จ (เช่น Chart.js โหลดไม่ทัน) ยังเห็นข้อมูลในตารางได้ตามปกติ
+      console.error('สร้างกราฟเปรียบเทียบ Supplier ไม่สำเร็จ:', compareChartErr);
     }
   }
+
 
   function gradeFromRate(rate) {
     if (rate >= 98) return { label: 'A', cls: 'status-pass' };
@@ -1317,12 +1485,31 @@
       });
     });
 
-    document.getElementById('defectSupplierFilter').addEventListener('change', function () {
-      analysisState.supplierFilter = this.value;
+    // Checkbox ใน dropdown (event delegation บน menu เพราะรายการถูกสร้างใหม่ทุกครั้งที่ populate)
+    document.getElementById('defectSupplierFilterMenu').addEventListener('click', function (e) {
+      // กัน Bootstrap ปิด dropdown ทันทีที่คลิกข้างใน (ทั้งคลิกที่ label และ checkbox)
+      e.stopPropagation();
+    });
+    document.getElementById('defectSupplierFilterMenu').addEventListener('change', function (e) {
+      var cb = e.target.closest('.defect-supplier-checkbox');
+      if (!cb) return;
+      var sup = cb.value;
+      var idx = analysisState.supplierFilter.indexOf(sup);
+      if (cb.checked && idx === -1) analysisState.supplierFilter.push(sup);
+      else if (!cb.checked && idx !== -1) analysisState.supplierFilter.splice(idx, 1);
+      renderDefectPanel();
+    });
+    // คลิก chip เพื่อลบ Supplier นั้นออกจากตัวกรองอย่างรวดเร็ว (ไม่ต้องเปิด dropdown)
+    document.getElementById('defectSupplierSelectedChips').addEventListener('click', function (e) {
+      var chip = e.target.closest('.defect-supplier-chip');
+      if (!chip) return;
+      var sup = chip.dataset.supplier;
+      var idx = analysisState.supplierFilter.indexOf(sup);
+      if (idx !== -1) analysisState.supplierFilter.splice(idx, 1);
       renderDefectPanel();
     });
     document.getElementById('defectSupplierFilterClear').addEventListener('click', function () {
-      analysisState.supplierFilter = '';
+      analysisState.supplierFilter = [];
       renderDefectPanel();
     });
     document.getElementById('supplierTableBody').addEventListener('click', function (e) {
@@ -1330,9 +1517,9 @@
       if (!btn) return;
       var supplierName = btn.dataset.supplier;
 
-      // สลับไปแท็บ "สรุป Defect" พร้อมตั้งค่าตัวกรอง Supplier ให้ตรงกับแถวที่กด
+      // สลับไปแท็บ "สรุป Defect" พร้อมตั้งค่าตัวกรอง Supplier ให้ตรงกับแถวที่กด (แทนที่ตัวกรองเดิมทั้งหมด)
       analysisState.tab = 'defect';
-      analysisState.supplierFilter = supplierName;
+      analysisState.supplierFilter = [supplierName];
       document.querySelectorAll('#analysisTab .nav-link').forEach(function (b) {
         b.classList.toggle('active', b.dataset.analysisTab === 'defect');
       });
