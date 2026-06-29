@@ -551,6 +551,16 @@
         </div>
       </div>
 
+      <div id="defectSupplierFilterWrap" class="d-flex align-items-center gap-2 mb-3">
+        <label for="defectSupplierFilter" class="form-label mb-0 small text-muted"><i class="bi bi-building"></i> กรองตาม Supplier:</label>
+        <select id="defectSupplierFilter" class="form-select form-select-sm" style="max-width:260px;">
+          <option value="">-- ทุก Supplier --</option>
+        </select>
+        <button type="button" id="defectSupplierFilterClear" class="btn btn-sm btn-outline-secondary d-none">
+          <i class="bi bi-x-circle"></i> ล้างตัวกรอง
+        </button>
+      </div>
+
       <!-- ---------- DEFECT SUMMARY PANEL ---------- -->
       <div id="analysisPanelDefect">
         <div class="row g-3">
@@ -595,7 +605,7 @@
               <div class="chart-card-title">รายละเอียด Defect ทั้งหมด</div>
               <div class="table-responsive">
                 <table class="table align-middle data-table mb-0" id="defectTable">
-                  <thead><tr><th>Defect / หมายเหตุ</th><th>จำนวน(ครั้ง)</th><th>สัดส่วน</th><th>Supplier ที่เกี่ยวข้อง</th></tr></thead>
+                  <thead><tr><th>Defect / หมายเหตุ</th><th>จำนวน(ครั้ง)</th><th>สัดส่วน</th><th>Supplier</th></tr></thead>
                   <tbody id="defectTableBody"></tbody>
                 </table>
                 <div id="defectTableEmpty" class="empty-state d-none py-4">
@@ -625,6 +635,7 @@
                 <th class="sortable" data-sort="rejected">Rejected</th>
                 <th class="sortable" data-sort="passRate">Pass Rate</th>
                 <th class="sortable" data-sort="grade">เกรด</th>
+                <th class="text-center">Defect</th>
               </tr>
             </thead>
             <tbody id="supplierTableBody"></tbody>
