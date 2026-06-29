@@ -396,10 +396,62 @@
 
   function getPassKey(type) { return type === 'PK' ? 'ผ่าน' : 'Approved'; }
 
-  // ดึงข้อความ Defect: PK ใช้ "ประเภท Defect" ก่อน ถ้าไม่มีใช้ "หมายเหตุ"; RM ใช้ "หมายเหตุ" ก่อน ถ้าไม่มีใช้ "Remark"
+  // คำสำคัญสำหรับเดาประเภท Defect จากข้อความ "หมายเหตุ" โดยอัตโนมัติ
+  // อ้างอิงจากรูปแบบคำที่เคยใช้ระบุประเภท Defect ไว้จริงในข้อมูล (คอลัมน์ "ประเภท Defect (auto)")
+  // หมายเหตุไม่ครบทุกแถว เพราะแต่ก่อนต้องพิมพ์เองในไฟล์ Excel — ฟังก์ชันนี้ช่วยเดาแทนเมื่อไม่ได้ระบุไว้
+  // ถ้าเจอคำผิดหรือคำใหม่ที่ยังไม่ครอบคลุม สามารถเพิ่ม keyword ต่อท้าย array ของหมวดนั้น ๆ ได้เลย
+  var DEFECT_KEYWORDS = {
+    'จุดดำ':         ['จุดดำ', 'รอยดำ'],
+    'จุดขาว':        ['จุดขาว'],
+    'สีไม่ตรง':      ['สีไม่ตรง', 'สีอ่อนกว่า', 'สีเข้มกว่า', 'สีไม่ถูกต้อง', 'สีผิดสเปค', 'สีตก'],
+    'รอยขีดขูด':     ['รอยขีดขูด', 'รอยขูดขีด', 'ขูดขีด', 'รอยขูด'],
+    'เปื้อน':        ['เปื้อน', 'เปื้ิอน'],
+    'เลอะหมึก':      ['เลอะหมึก'],
+    'ฉีกขาด':        ['ฉีกขาด'],
+    'ตัวอักษร':      ['ตัวอักษร', 'ตัวหนังสือ'],
+    'พิมพ์ไม่คมชัด':  ['พิมพ์ไม่คมชัด', 'พิมพ์ไม่ชัดเจน'],
+    'ตำแหน่งพิมพ์':   ['ตำแหน่งพิมพ์'],
+    'รอยสกรีน':      ['รอยสกรีน'],
+    'สกรีนถลอก':     ['สกรีนถลอก'],
+    'ฝาปิดไม่สนิท':   ['ฝาปิดไม่สนิท'],
+    'รูปทรง':        ['รูปทรง', 'ก้นขวดเอียง'],
+    'กล่องบุบ':      ['กล่องบุบ'],
+    'กระจกหลุด':     ['กระจกหลุด'],
+    'สกิดเข้าเนื้อ':  ['สกิดเข้าเนื้อ'],
+    'ฝุ่น':          ['ฝุ่น', 'สิ่งสกปรก'],
+    'เส้นผม':        ['เส้นผม'],
+    'รอยยับย่น':     ['รอยยับย่น', 'ยับย่น'],
+    'แตกร้าว':       ['แตกร้าว'],
+    'ฟองอากาศ':      ['ฟองอากาศ']
+  };
+
+  // หาว่าข้อความ "หมายเหตุ" เข้าข่ายประเภท Defect หมวดไหนได้บ้าง (อาจได้มากกว่า 1 หมวด)
+  function inferDefectTypes(remark) {
+    var text = String(remark || '');
+    if (!text.trim()) return [];
+    var found = [];
+    Object.keys(DEFECT_KEYWORDS).forEach(function (category) {
+      var keywords = DEFECT_KEYWORDS[category];
+      for (var i = 0; i < keywords.length; i++) {
+        if (text.indexOf(keywords[i]) !== -1) { found.push(category); break; }
+      }
+    });
+    return found;
+  }
+
+  // ค่า "ประเภท Defect" ที่จะใช้แสดงผลจริง: ถ้ามีการระบุไว้แล้ว (ในไฟล์/แก้ไขเอง) ให้ใช้ค่านั้นก่อนเสมอ
+  // ถ้ายังไม่มีการระบุ ให้เดาจากคำในหมายเหตุโดยอัตโนมัติ
+  function getEffectiveDefectType(r) {
+    var existing = (r.defectType || '').toString().trim();
+    if (existing && existing !== '-') return existing;
+    var guessed = inferDefectTypes(r.remark);
+    return guessed.join('|');
+  }
+
+  // ดึงข้อความ Defect: PK ใช้ "ประเภท Defect" (หรือเดาจากหมายเหตุถ้ายังไม่ระบุ); RM ใช้ "หมายเหตุ" ก่อน ถ้าไม่มีใช้ "Remark"
   function getDefectText(type, r) {
     if (type === 'PK') {
-      var dt = (r.defectType || '').toString().trim();
+      var dt = getEffectiveDefectType(r);
       if (dt) return dt;
       return (r.remark || '').toString().trim();
     }
@@ -696,6 +748,13 @@
         if (f.type === 'date') return '<td>' + formatDateDisplay(val) + '</td>';
         if (f.type === 'boolean') return '<td>' + (val ? '<span class="status-badge status-pass"><i class="bi bi-check-circle-fill"></i>มี</span>' : '<span class="text-muted">-</span>') + '</td>';
         if (f.type === 'number') return '<td class="mono">' + ((val === '' || val === undefined || val === null) ? '-' : Number(val).toLocaleString('th-TH')) + '</td>';
+        if (f.key === 'defectType') {
+          var explicitVal = (val || '').toString().trim();
+          var effectiveVal = getEffectiveDefectType(r);
+          if (!effectiveVal) return '<td>-</td>';
+          if (explicitVal && explicitVal !== '-') return '<td>' + escapeHtml(effectiveVal) + '</td>';
+          return '<td><span class="text-muted" title="ระบบเดาจากหมายเหตุโดยอัตโนมัติ ยังไม่ได้ระบุไว้ในไฟล์">' + escapeHtml(effectiveVal) + ' <i class="bi bi-magic"></i></span></td>';
+        }
         return '<td>' + (val ? escapeHtml(String(val)) : '-') + '</td>';
       }).join('');
       return '<tr>' + cells +
