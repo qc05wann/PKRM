@@ -392,7 +392,7 @@
   }
 
   /* ---------------- หน้าวิเคราะห์คุณภาพ: สรุป Defect / ประเมิน Supplier ---------------- */
-  var analysisState = { tab: 'defect', type: 'PK', supplierSort: { field: 'passRate', dir: 'asc' } };
+  var analysisState = { tab: 'defect', type: 'PK', supplierSort: { field: 'passRate', dir: 'asc' }, supplierFilter: '' };
 
   function getPassKey(type) { return type === 'PK' ? 'ผ่าน' : 'Approved'; }
 
@@ -491,7 +491,9 @@
     return isNonDefectNote(rm2) ? '' : rm2;
   }
 
-  function computeDefectSummary(type) {
+  // คำนวณสรุป Defect ของประเภท (PK/RM) ที่กำหนด
+  // supplierFilter: ถ้าระบุ (ไม่ใช่ค่าว่าง) จะนับเฉพาะรายการของ Supplier นั้นเท่านั้น
+  function computeDefectSummary(type, supplierFilter) {
     var records = loadRecords(type);
     var passKey = getPassKey(type);
 
@@ -504,6 +506,10 @@
     records.forEach(function (r) {
       var text = getDefectText(type, r);
       if (!text) return;
+
+      var sup = (r.supplier || '').toString().trim() || 'ไม่ระบุ';
+      if (supplierFilter && sup !== supplierFilter) return;
+
       totalTagged++;
 
       var st = r.status || 'ไม่ระบุสถานะ';
@@ -511,23 +517,58 @@
 
       if (!groups[text]) groups[text] = { text: text, count: 0, suppliers: {} };
       groups[text].count++;
-      var sup = (r.supplier || '').toString().trim() || 'ไม่ระบุ';
-      groups[text].suppliers[sup] = true;
+      groups[text].suppliers[sup] = (groups[text].suppliers[sup] || 0) + 1;
     });
 
     var list = Object.keys(groups).map(function (k) {
       var g = groups[k];
-      return { text: g.text, count: g.count, supplierCount: Object.keys(g.suppliers).length };
+      return { text: g.text, count: g.count, supplierCount: Object.keys(g.suppliers).length, suppliers: g.suppliers };
     });
     list.sort(function (a, b) { return b.count - a.count; });
 
     return { totalTagged: totalTagged, uniqueCount: list.length, top: list[0] || null, list: list, statusBreakdown: statusBreakdown, passKey: passKey };
   }
 
+  // รายชื่อ Supplier ทั้งหมดที่มีในข้อมูลประเภทนี้ (เรียงตามตัวอักษร) — ใช้เติม dropdown filter
+  function getSupplierListForType(type) {
+    var records = loadRecords(type);
+    var set = {};
+    records.forEach(function (r) {
+      var sup = (r.supplier || '').toString().trim() || 'ไม่ระบุ';
+      set[sup] = true;
+    });
+    return Object.keys(set).sort(function (a, b) { return a.localeCompare(b, 'th'); });
+  }
+
+
   var defectChartInstance = null;
 
+  function populateDefectSupplierFilter() {
+    var sel = document.getElementById('defectSupplierFilter');
+    if (!sel) return;
+    var suppliers = getSupplierListForType(analysisState.type);
+    var currentVal = analysisState.supplierFilter;
+
+    var options = ['<option value="">-- ทุก Supplier --</option>'];
+    suppliers.forEach(function (sup) {
+      options.push('<option value="' + escapeHtml(sup) + '">' + escapeHtml(sup) + '</option>');
+    });
+    sel.innerHTML = options.join('');
+
+    // ถ้า Supplier ที่เลือกไว้ไม่มีในประเภทนี้แล้ว (เช่น สลับ PK<->RM) ให้รีเซ็ตตัวกรอง
+    if (currentVal && suppliers.indexOf(currentVal) === -1) {
+      analysisState.supplierFilter = '';
+      currentVal = '';
+    }
+    sel.value = currentVal;
+
+    var clearBtn = document.getElementById('defectSupplierFilterClear');
+    if (clearBtn) clearBtn.classList.toggle('d-none', !currentVal);
+  }
+
   function renderDefectPanel() {
-    var summary = computeDefectSummary(analysisState.type);
+    populateDefectSupplierFilter();
+    var summary = computeDefectSummary(analysisState.type, analysisState.supplierFilter);
 
     document.getElementById('defectTotalProblem').textContent = summary.totalTagged;
     document.getElementById('defectUniqueCount').textContent = summary.uniqueCount;
@@ -550,12 +591,30 @@
       tbody.innerHTML = '';
       tableEl.classList.add('d-none');
       tableEmptyEl.classList.remove('d-none');
+      var emptyTitle = tableEmptyEl.querySelector('h2');
+      var emptyDesc = tableEmptyEl.querySelector('p');
+      if (analysisState.supplierFilter) {
+        if (emptyTitle) emptyTitle.textContent = 'ไม่พบ Defect ของ Supplier นี้';
+        if (emptyDesc) emptyDesc.textContent = 'Supplier "' + analysisState.supplierFilter + '" ไม่มีรายการ Defect/หมายเหตุที่บันทึกไว้';
+      } else {
+        if (emptyTitle) emptyTitle.textContent = 'ยังไม่พบ Defect ในข้อมูล';
+        if (emptyDesc) emptyDesc.textContent = 'ไม่มีรายการที่ระบุประเภท Defect หรือหมายเหตุไว้';
+      }
     } else {
       tableEl.classList.remove('d-none');
       tableEmptyEl.classList.add('d-none');
       tbody.innerHTML = summary.list.map(function (g) {
         var pct = summary.totalTagged ? ((g.count / summary.totalTagged) * 100).toFixed(1) : '0.0';
-        return '<tr><td>' + escapeHtml(g.text) + '</td><td class="mono">' + g.count + '</td><td class="mono">' + pct + '%</td><td class="mono">' + g.supplierCount + '</td></tr>';
+        var supplierCell;
+        if (analysisState.supplierFilter) {
+          // กรองแล้วเหลือ supplier เดียว — ไม่ต้องโชว์ตัวเลขนับซ้ำ แค่ยืนยันชื่อ
+          supplierCell = escapeHtml(analysisState.supplierFilter);
+        } else {
+          var supNames = Object.keys(g.suppliers).sort(function (a, b) { return g.suppliers[b] - g.suppliers[a]; });
+          var tooltip = supNames.map(function (s) { return s + ': ' + g.suppliers[s] + ' ครั้ง'; }).join(' · ');
+          supplierCell = '<span title="' + escapeHtml(tooltip) + '" style="cursor:help; border-bottom:1px dashed currentColor;">' + g.supplierCount + '</span>';
+        }
+        return '<tr><td>' + escapeHtml(g.text) + '</td><td class="mono">' + g.count + '</td><td class="mono">' + pct + '%</td><td class="mono">' + supplierCell + '</td></tr>';
       }).join('');
     }
 
@@ -657,6 +716,7 @@
           '<td class="mono">' + g.rejected + '</td>' +
           '<td class="mono">' + g.passRate.toFixed(1) + '%</td>' +
           '<td><span class="status-badge grade-badge ' + grade.cls + '">' + grade.label + '</span></td>' +
+          '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-brand btn-view-supplier-defect" data-supplier="' + escapeHtml(g.supplier) + '"><i class="bi bi-exclamation-octagon"></i> ดู Defect</button></td>' +
           '</tr>';
       }).join('');
     }
@@ -1255,6 +1315,31 @@
         }
         renderSupplierPanel();
       });
+    });
+
+    document.getElementById('defectSupplierFilter').addEventListener('change', function () {
+      analysisState.supplierFilter = this.value;
+      renderDefectPanel();
+    });
+    document.getElementById('defectSupplierFilterClear').addEventListener('click', function () {
+      analysisState.supplierFilter = '';
+      renderDefectPanel();
+    });
+    document.getElementById('supplierTableBody').addEventListener('click', function (e) {
+      var btn = e.target.closest('.btn-view-supplier-defect');
+      if (!btn) return;
+      var supplierName = btn.dataset.supplier;
+
+      // สลับไปแท็บ "สรุป Defect" พร้อมตั้งค่าตัวกรอง Supplier ให้ตรงกับแถวที่กด
+      analysisState.tab = 'defect';
+      analysisState.supplierFilter = supplierName;
+      document.querySelectorAll('#analysisTab .nav-link').forEach(function (b) {
+        b.classList.toggle('active', b.dataset.analysisTab === 'defect');
+      });
+      document.getElementById('analysisPanelDefect').classList.remove('d-none');
+      document.getElementById('analysisPanelSupplier').classList.add('d-none');
+      renderDefectPanel();
+      document.getElementById('analysisPanelDefect').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
     document.getElementById('importFile').addEventListener('change', function () {
