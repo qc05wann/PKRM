@@ -551,22 +551,6 @@
         </div>
       </div>
 
-      <div id="defectSupplierFilterWrap" class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-        <label class="form-label mb-0 small text-muted"><i class="bi bi-building"></i> กรองตาม Supplier:</label>
-        <div class="dropdown" id="defectSupplierDropdown">
-          <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" id="defectSupplierFilterBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" style="min-width:200px; text-align:left;">
-            <span id="defectSupplierFilterBtnLabel">-- ทุก Supplier --</span>
-          </button>
-          <div class="dropdown-menu p-2" id="defectSupplierFilterMenu" style="max-height:300px; overflow-y:auto; min-width:240px;">
-            <!-- checkbox items injected by JS -->
-          </div>
-        </div>
-        <button type="button" id="defectSupplierFilterClear" class="btn btn-sm btn-outline-secondary d-none">
-          <i class="bi bi-x-circle"></i> ล้างตัวกรอง
-        </button>
-        <div id="defectSupplierSelectedChips" class="d-flex flex-wrap gap-1"></div>
-      </div>
-
       <!-- ---------- DEFECT SUMMARY PANEL ---------- -->
       <div id="analysisPanelDefect">
         <div class="row g-3">
@@ -611,7 +595,7 @@
               <div class="chart-card-title">รายละเอียด Defect ทั้งหมด</div>
               <div class="table-responsive">
                 <table class="table align-middle data-table mb-0" id="defectTable">
-                  <thead><tr><th>Defect / หมายเหตุ</th><th>จำนวน(ครั้ง)</th><th>สัดส่วน</th><th>Supplier</th></tr></thead>
+                  <thead><tr><th>Defect / หมายเหตุ</th><th>จำนวน(ครั้ง)</th><th>สัดส่วน</th><th>Supplier ที่เกี่ยวข้อง</th></tr></thead>
                   <tbody id="defectTableBody"></tbody>
                 </table>
                 <div id="defectTableEmpty" class="empty-state d-none py-4">
@@ -626,27 +610,6 @@
         <p class="text-muted small mt-2">
           <i class="bi bi-info-circle"></i> นับจากทุกรายการที่มีข้อความในช่อง "ประเภท Defect" (เฉพาะ PK) หรือ "หมายเหตุ" — ไม่ว่าสถานะสุดท้ายจะเป็นผ่าน/Quarantine/Rejected ก็ตาม เพื่อให้เห็นข้อบกพร่องที่ถูกบันทึกไว้ทั้งหมด แม้รายการนั้นจะผ่านเกณฑ์ในที่สุด
         </p>
-
-        <!-- ---------- SUPPLIER COMPARISON SECTION (แสดงเมื่อเลือก Supplier ≥ 2 ราย) ---------- -->
-        <div id="supplierCompareSection" class="d-none mt-4">
-          <hr>
-          <h2 class="h6 mb-3"><i class="bi bi-bar-chart-steps"></i> เปรียบเทียบ Defect ระหว่าง Supplier ที่เลือก</h2>
-
-          <div class="chart-card mb-3">
-            <div class="chart-card-title">กราฟเปรียบเทียบ — จำนวน Defect แต่ละประเภทต่อ Supplier</div>
-            <div class="chart-wrap" style="height:320px;"><canvas id="supplierCompareChart"></canvas></div>
-          </div>
-
-          <div class="chart-card">
-            <div class="chart-card-title">ตารางเปรียบเทียบ — Defect แต่ละประเภท แยกตาม Supplier</div>
-            <div class="table-responsive">
-              <table class="table align-middle data-table mb-0" id="supplierCompareTable">
-                <thead><tr id="supplierCompareTableHead"></tr></thead>
-                <tbody id="supplierCompareTableBody"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- ---------- SUPPLIER EVALUATION PANEL ---------- -->
@@ -662,7 +625,6 @@
                 <th class="sortable" data-sort="rejected">Rejected</th>
                 <th class="sortable" data-sort="passRate">Pass Rate</th>
                 <th class="sortable" data-sort="grade">เกรด</th>
-                <th class="text-center">Defect</th>
               </tr>
             </thead>
             <tbody id="supplierTableBody"></tbody>
@@ -722,6 +684,12 @@
               <h2 class="io-card-title"><i class="bi bi-file-earmark-arrow-down"></i> ส่งออกข้อมูลเป็น Excel</h2>
               <p class="text-muted">ดาวน์โหลดข้อมูลทั้งหมดในระบบ (PK และ RM) เป็นไฟล์ .xlsx ไฟล์เดียว สำรองไว้ หรือนำกลับเข้าระบบได้ในอนาคต</p>
               <button class="btn btn-brand" id="exportBtn"><i class="bi bi-download"></i> ดาวน์โหลด Excel</button>
+
+              <hr class="my-4">
+
+              <h2 class="io-card-title text-warning"><i class="bi bi-files"></i> ลบรายการที่ซ้ำ (เลขที่รับเข้าซ้ำ)</h2>
+              <p class="text-muted">ตรวจและลบแถวที่มีเลขที่รับเข้าซ้ำกันในระบบ (เก็บแถวแรกที่เจอไว้ ลบแถวที่ซ้ำตามมาทิ้ง) ใช้แก้ปัญหากรณีเคยนำเข้าไฟล์เดิมซ้ำหลายครั้งโดยไม่ได้เลือกโหมด "แทนที่"</p>
+              <button class="btn btn-outline-warning" id="dedupAllBtn"><i class="bi bi-files"></i> ลบรายการซ้ำ</button>
 
               <hr class="my-4">
 
